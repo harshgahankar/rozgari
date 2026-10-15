@@ -1,6 +1,6 @@
-# KaamSetu — IMPLEMENTATION_PLAN.md
+# Rozgari — IMPLEMENTATION_PLAN.md
 > Beyond the Waiting Line — Frontend UI/UX Hackathon
-> Base project: `rozgari` (fresh `flutter create`, counter template). No KaamSetu UI exists yet.
+> Base project: `rozgari` (fresh `flutter create`, counter template). No Rozgari UI exists yet.
 > Strategy: scaffold clean architecture now so incoming frontend code can drop in without rewrites. Preserve Material3 seed theme.
 
 ## 1. Baseline audit (2026-10-15)
@@ -17,7 +17,7 @@
 
 | Feature | Existing screen/widget | Current | Missing | Files to touch/create | Priority | Status |
 |---|---|---|---|---|---|---|
-| App shell + theme + routes | `lib/main.dart` MyApp | counter only | KaamSetu shell, demo entry, bottom nav, theme file | `lib/main.dart`, `lib/app/app.dart`, `lib/app/theme.dart`, `lib/app/routes.dart` | P0 | Planned |
+| App shell + theme + routes | `lib/main.dart` MyApp | counter only | Rozgari shell, demo entry, bottom nav, theme file | `lib/main.dart`, `lib/app/app.dart`, `lib/app/theme.dart`, `lib/app/routes.dart` | P0 | Planned |
 | Data models (User, Worker, Employer, Job, Application, Agreement, Notification, Payment, Safety, Welfare, Invitation) | none | — | all strongly-typed + enums | `lib/data/models/*.dart` | P0 | Planned |
 | Mock dataset (15 workers, 5 employers, 28 jobs Pune/Mumbai, apps, agreements, notifs) | none | — | realistic IN data + reset | `lib/data/mock/demo_data.dart` | P0 | Planned |
 | Shared state (Riverpod) + persistence (SharedPreferences JSON) | none | — | single source of truth, survive restart | `lib/state/app_state.dart`, `lib/data/local/store.dart` | P0 | Planned |

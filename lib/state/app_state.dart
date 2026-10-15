@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/utils/lifecycle.dart';
+import '../core/i18n/strings.dart';
 import '../data/local/store.dart';
 import '../data/mock/demo_data.dart';
 import '../data/models/enums.dart';
@@ -74,6 +75,7 @@ class AppState {
       notifications.where((n) => n.userId == userId && !n.read).length;
 
   Map<String, dynamic> toJson() => {
+    'schema': 1,
     'users': users.map((e) => e.toJson()).toList(),
     'workers': workers.map((e) => e.toJson()).toList(),
     'employers': employers.map((e) => e.toJson()).toList(),
@@ -221,8 +223,13 @@ class AppController extends StateNotifier<AppState> {
   Future<void> _persist() => _store.save(state.toJson());
 
   // ---------- session ----------
+  // Offline language switch: EN/HI only in the picker ('mr' kept readable
+  // for old installs). Persisted locally via LocalStore — no backend.
+  static const supportedLangs = ['en', 'hi', 'mr'];
+
   Future<void> setLang(String v) async {
-    state = state.copyWith(lang: v);
+    final norm = supportedLangs.contains(v) ? v : 'hi';
+    state = state.copyWith(lang: norm);
     await _persist();
   }
 
@@ -304,8 +311,12 @@ class AppController extends StateNotifier<AppState> {
 
   ({bool ok, String msg}) applyForJob(String jobId) {
     final job = state.jobs.firstWhere((j) => j.id == jobId);
-    if (job.status != JobStatus.open)
-      return (ok: false, msg: 'Job is no longer open');
+    if (job.status != JobStatus.open) {
+      return (ok: false, msg: tr(state.lang, 'errJobClosed'));
+    }
+    if (filledCountForJob(job.id) >= job.requiredWorkers) {
+      return (ok: false, msg: tr(state.lang, 'errJobFilled'));
+    }
     final dup = state.applications.any(
       (a) =>
           a.jobId == jobId &&
@@ -316,7 +327,7 @@ class AppController extends StateNotifier<AppState> {
             ApplicationStatus.cancelled,
           ].contains(a.status),
     );
-    if (dup) return (ok: false, msg: 'Already applied — check My Jobs');
+    if (dup) return (ok: false, msg: tr(state.lang, 'errDup'));
     final now = DateTime.now();
     final app = JobApplication(
       id: 'a_${_uuid.v4().substring(0, 6)}',
@@ -343,7 +354,7 @@ class AppController extends StateNotifier<AppState> {
       ],
     );
     _persist();
-    return (ok: true, msg: 'Application saved — employer notified');
+    return (ok: true, msg: tr(state.lang, 'okApplied'));
   }
 
   String _employerUserIdForJob(Job job) {
@@ -354,17 +365,31 @@ class AppController extends StateNotifier<AppState> {
     return emp.userId;
   }
 
+  /// Applications occupying a position (confirmed pipeline). Rule 8.
+  static const _occupying = {
+    ApplicationStatus.confirmed,
+    ApplicationStatus.inProgress,
+    ApplicationStatus.completed,
+  };
+
+  int filledCountForJob(String jobId) => state.applications
+      .where((a) => a.jobId == jobId && _occupying.contains(a.status))
+      .length;
+
   ({bool ok, String msg}) transitionApplication(
     String appId,
     ApplicationStatus to,
   ) {
     final i = state.applications.indexWhere((a) => a.id == appId);
-    if (i < 0) return (ok: false, msg: 'Application not found');
+    if (i < 0) return (ok: false, msg: tr(state.lang, 'errAppNotFound'));
     final app = state.applications[i];
     if (!canTransition(app.status, to)) {
       return (
         ok: false,
-        msg: 'Invalid status: ${app.status.name} → ${to.name}',
+        msg: trArgs(state.lang, 'errInvalidStatus', {
+          'v':
+              '${codeLabel(state.lang, app.status.name)} → ${codeLabel(state.lang, to.name)}',
+        }),
       );
     }
     final list = [...state.applications];
@@ -465,7 +490,12 @@ class AppController extends StateNotifier<AppState> {
     }
     state = state.copyWith(applications: list, notifications: notifs);
     _persist();
-    return (ok: true, msg: 'Status → ${to.name}');
+    return (
+      ok: true,
+      msg: trArgs(state.lang, 'okStatus', {
+        's': codeLabel(state.lang, to.name),
+      }),
+    );
   }
 
   String _workerName(String workerProfileId) {
@@ -494,45 +524,76 @@ class AppController extends StateNotifier<AppState> {
     await _persist();
   }
 
+  // Closing/cancelling ends the pipeline: active applications are cancelled
+  // (workers notified) and open agreements are cancelled (rule 11).
+  // Finished history (completed/rejected/cancelled/declined) is preserved.
   Future<void> closeJob(String jobId, JobStatus to) async {
     final list = [...state.jobs];
     final i = list.indexWhere((j) => j.id == jobId);
     if (i < 0) return;
     list[i] = list[i].copyWith(status: to);
-    // notify active applicants
+    final now = DateTime.now();
+    final apps = [...state.applications];
     final notifs = [...state.notifications];
-    for (final a in state.applications.where(
-      (a) =>
-          a.jobId == jobId &&
-          ![
-            ApplicationStatus.completed,
-            ApplicationStatus.rejected,
-            ApplicationStatus.cancelled,
-          ].contains(a.status),
-    )) {
+    for (var k = 0; k < apps.length; k++) {
+      final a = apps[k];
+      if (a.jobId != jobId) continue;
+      if ([
+        ApplicationStatus.completed,
+        ApplicationStatus.rejected,
+        ApplicationStatus.cancelled,
+      ].contains(a.status)) {
+        continue;
+      }
+      apps[k] = a.copyWith(status: ApplicationStatus.cancelled, updatedAt: now);
       notifs.add(
         AppNotification(
           id: 'n_${_uuid.v4().substring(0, 6)}',
           userId: a.workerId,
           kind: NotificationKind.cancelled,
-          title: 'Job ${to.name}',
-          body: '${list[i].title} was ${to.name}.',
+          title: 'Job ${codeLabel(state.lang, to.name)}',
+          body: '${list[i].title} — ${codeLabel(state.lang, to.name)}.',
           refId: jobId,
-          createdAt: DateTime.now(),
+          createdAt: now,
         ),
       );
     }
-    state = state.copyWith(jobs: list, notifications: notifs);
+    final agrs = [...state.agreements];
+    for (var k = 0; k < agrs.length; k++) {
+      final g = agrs[k];
+      if (g.jobId != jobId) continue;
+      if (g.status == AgreementStatus.declined ||
+          g.status == AgreementStatus.cancelled) {
+        continue;
+      }
+      agrs[k] = g.copyWith(status: AgreementStatus.cancelled, updatedAt: now);
+    }
+    state = state.copyWith(
+      jobs: list,
+      applications: apps,
+      agreements: agrs,
+      notifications: notifs,
+    );
     await _persist();
   }
 
   // ---------- agreements ----------
-  Future<WorkAgreement> sendOffer({
+  // Offers only for open jobs with free positions (rules 2 + 8).
+  Future<({bool ok, String msg, WorkAgreement? offer})> sendOffer({
     required String jobId,
     required String workerId,
     double? payOverride,
   }) async {
-    final job = state.jobs.firstWhere((j) => j.id == jobId);
+    Job job;
+    try {
+      job = state.jobs.firstWhere((j) => j.id == jobId);
+    } catch (_) {
+      return (ok: false, msg: tr(state.lang, 'errOfferBlocked'), offer: null);
+    }
+    if (job.status != JobStatus.open ||
+        filledCountForJob(jobId) >= job.requiredWorkers) {
+      return (ok: false, msg: tr(state.lang, 'errOfferBlocked'), offer: null);
+    }
     final existing = state.agreements
         .where((g) => g.jobId == jobId && g.workerId == workerId)
         .toList();
@@ -577,7 +638,7 @@ class AppController extends StateNotifier<AppState> {
       ],
     );
     await _persist();
-    return g;
+    return (ok: true, msg: tr(state.lang, 'offerSent'), offer: g);
   }
 
   void transitionApplicationFor(
@@ -643,7 +704,7 @@ class AppController extends StateNotifier<AppState> {
     required bool byWorker,
   }) async {
     final i = state.agreements.indexWhere((g) => g.id == agreementId);
-    if (i < 0) return (ok: false, msg: 'Agreement not found');
+    if (i < 0) return (ok: false, msg: tr(state.lang, 'errAgrNotFound'));
     final g = state.agreements[i];
     final upd = g.copyWith(
       workerConfirmed: byWorker ? true : g.workerConfirmed,
@@ -702,12 +763,22 @@ class AppController extends StateNotifier<AppState> {
         ],
       );
     }
+    // Auto-fill: when every position is confirmed, the job stops accepting
+    // new applications (rule 8).
+    final ji = state.jobs.indexWhere((j) => j.id == g.jobId);
+    if (ji >= 0) {
+      final j = state.jobs[ji];
+      if (j.status == JobStatus.open &&
+          filledCountForJob(j.id) >= j.requiredWorkers) {
+        final jobs = [...state.jobs];
+        jobs[ji] = j.copyWith(status: JobStatus.filled);
+        state = state.copyWith(jobs: jobs);
+      }
+    }
     await _persist();
     return (
       ok: true,
-      msg: both
-          ? 'Agreement confirmed by both sides'
-          : 'Your confirmation saved — waiting for other side',
+      msg: both ? tr(state.lang, 'okAgrBoth') : tr(state.lang, 'okAgrWaiting'),
     );
   }
 
@@ -757,6 +828,34 @@ class AppController extends StateNotifier<AppState> {
   Future<void> renameCurrentWorker(String name) async {
     final users = [...state.users];
     final ui = users.indexWhere((u) => u.id == state.currentWorkerId);
+    if (ui < 0) return;
+    final old = users[ui];
+    users[ui] = AppUser(
+      id: old.id,
+      name: name,
+      role: old.role,
+      preferredLanguage: old.preferredLanguage,
+      contact: old.contact,
+    );
+    state = state.copyWith(users: users);
+    await _persist();
+  }
+
+  Future<void> upsertEmployerProfile(EmployerProfile e) async {
+    final list = [...state.employers];
+    final i = list.indexWhere((x) => x.id == e.id);
+    if (i >= 0) {
+      list[i] = e;
+    } else {
+      list.add(e);
+    }
+    state = state.copyWith(employers: list);
+    await _persist();
+  }
+
+  Future<void> renameCurrentEmployer(String name) async {
+    final users = [...state.users];
+    final ui = users.indexWhere((u) => u.id == state.currentEmployerId);
     if (ui < 0) return;
     final old = users[ui];
     users[ui] = AppUser(
@@ -852,13 +951,76 @@ class AppController extends StateNotifier<AppState> {
     await _persist();
   }
 
-  Future<void> respondInvitation(String id, InvitationStatus s) async {
+  // Accepting an invitation joins the SAME offer workflow as a
+  // worker-initiated application: an application record is created for the
+  // invited job and the employer is notified to review + send an offer.
+  Future<({bool ok, String msg})> respondInvitation(
+    String id,
+    InvitationStatus s,
+  ) async {
     final list = [...state.invitations];
     final i = list.indexWhere((e) => e.id == id);
-    if (i < 0) return;
+    if (i < 0) return (ok: false, msg: tr(state.lang, 'errAppNotFound'));
     list[i] = list[i].copyWith(status: s);
     state = state.copyWith(invitations: list);
+    if (s == InvitationStatus.accepted) {
+      final inv = list[i];
+      final hasActive = state.applications.any(
+        (a) =>
+            a.jobId == inv.jobId &&
+            a.workerId == inv.workerId &&
+            ![
+              ApplicationStatus.rejected,
+              ApplicationStatus.withdrawn,
+              ApplicationStatus.cancelled,
+              ApplicationStatus.completed,
+            ].contains(a.status),
+      );
+      if (!hasActive) {
+        final now = DateTime.now();
+        final app = JobApplication(
+          id: 'a_${_uuid.v4().substring(0, 6)}',
+          jobId: inv.jobId,
+          workerId: inv.workerId,
+          status: ApplicationStatus.applied,
+          appliedAt: now,
+          updatedAt: now,
+        );
+        String empUser = state.currentEmployerId;
+        String title = inv.jobId;
+        try {
+          final job = state.jobs.firstWhere((j) => j.id == inv.jobId);
+          empUser = _employerUserIdForJob(job);
+          title = job.title;
+        } catch (_) {}
+        String workerName = 'Worker';
+        try {
+          final wid = state.workers
+              .firstWhere((w) => w.id == inv.workerId)
+              .userId;
+          workerName = state.users.firstWhere((u) => u.id == wid).name;
+        } catch (_) {}
+        state = state.copyWith(
+          applications: [...state.applications, app],
+          notifications: [
+            ...state.notifications,
+            AppNotification(
+              id: 'n_${_uuid.v4().substring(0, 6)}',
+              userId: empUser,
+              kind: NotificationKind.applied,
+              title: 'Invitation accepted',
+              body: '$workerName accepted your invitation for $title.',
+              refId: inv.jobId,
+              createdAt: now,
+            ),
+          ],
+        );
+      }
+      await _persist();
+      return (ok: true, msg: tr(state.lang, 'inviteAcceptedApp'));
+    }
     await _persist();
+    return (ok: true, msg: tr(state.lang, 'inviteDeclined'));
   }
 
   Future<void> submitReport({

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../app/theme.dart';
+import '../i18n/strings.dart';
 import '../../data/models/enums.dart';
 import '../../data/models/models.dart';
 
@@ -14,32 +16,6 @@ String fmtPay(Job j) {
     PayUnit.perMonth => '/mo',
   };
   return '₹${j.payAmount.toStringAsFixed(0)}$unit';
-}
-
-class DemoBanner extends StatelessWidget {
-  const DemoBanner({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: KsColors.amberBg,
-        border: Border(
-          bottom: BorderSide(color: KsColors.secondary.withOpacity(.25)),
-        ),
-      ),
-      child: const Text(
-        'Demo Mode — simulated data, stays on this device only',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 11.5,
-          fontWeight: FontWeight.w700,
-          color: KsColors.secondary,
-        ),
-      ),
-    );
-  }
 }
 
 class LoadingView extends StatelessWidget {
@@ -116,7 +92,7 @@ class StatusChip extends StatelessWidget {
   final Color? bg;
   final Color? fg;
   const StatusChip(this.label, {super.key, this.bg, this.fg});
-  factory StatusChip.app(ApplicationStatus s) {
+  factory StatusChip.app(ApplicationStatus s, [String lang = 'en']) {
     final map = {
       ApplicationStatus.applied: (
         const Color(0xFFE3F2FD),
@@ -142,7 +118,7 @@ class StatusChip extends StatelessWidget {
       ApplicationStatus.disputed: (const Color(0xFFFFEBEE), KsColors.danger),
     };
     final c = map[s]!;
-    return StatusChip(s.name, bg: c.$1, fg: c.$2);
+    return StatusChip(codeLabel(lang, s.name), bg: c.$1, fg: c.$2);
   }
   @override
   Widget build(BuildContext context) {
@@ -164,6 +140,19 @@ class StatusChip extends StatelessWidget {
   }
 }
 
+/// Localized status chip: pass app [lang] so codes render in EN/HI.
+class LStatusChip extends StatelessWidget {
+  final String code;
+  final Color? bg;
+  final Color? fg;
+  const LStatusChip(this.code, {super.key, this.bg, this.fg});
+  @override
+  Widget build(BuildContext context) {
+    // Caller localizes before constructing; kept simple via StatusChip.
+    return StatusChip(code, bg: bg, fg: fg);
+  }
+}
+
 class JobCard extends StatelessWidget {
   final Job job;
   final String employerName;
@@ -172,6 +161,7 @@ class JobCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onSave;
   final List<String> safetyFlags;
+  final String lang;
   const JobCard({
     super.key,
     required this.job,
@@ -181,6 +171,7 @@ class JobCard extends StatelessWidget {
     this.onTap,
     this.onSave,
     this.safetyFlags = const [],
+    this.lang = 'en',
   });
   @override
   Widget build(BuildContext context) {
@@ -205,7 +196,7 @@ class JobCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
-                      job.category.toUpperCase(),
+                      tradeLabel(lang, job.category).toUpperCase(),
                       style: const TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
@@ -284,9 +275,9 @@ class JobCard extends StatelessWidget {
                               color: KsColors.successDeep,
                             ),
                           ),
-                          const Text(
-                            'Direct pay • No commission',
-                            style: TextStyle(
+                          Text(
+                            tr(lang, 'directPayNoComm'),
+                            style: const TextStyle(
                               fontSize: 10.5,
                               color: KsColors.muted,
                             ),
@@ -311,7 +302,10 @@ class JobCard extends StatelessWidget {
                           ],
                         ),
                         Text(
-                          'Starts ${fmtDate(job.startDate)} • ${job.duration}',
+                          trArgs(lang, 'starts', {
+                            'd': fmtDate(job.startDate),
+                            'dur': job.duration,
+                          }),
                           style: const TextStyle(
                             fontSize: 11.5,
                             color: KsColors.muted,
@@ -369,7 +363,9 @@ class JobCard extends StatelessWidget {
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          'Caution: ${safetyFlags.first}',
+                          trArgs(lang, 'caution', {
+                            'f': flagLabel(lang, safetyFlags.first),
+                          }),
                           style: const TextStyle(
                             fontSize: 11.5,
                             color: KsColors.danger,
@@ -396,4 +392,21 @@ void showFeedback(BuildContext context, String msg, {bool error = false}) {
       backgroundColor: error ? KsColors.danger : KsColors.primary,
     ),
   );
+}
+
+/// Kaam Sahayak helpline: opens the phone dial pad with 8850611287
+/// pre-filled (ACTION_DIAL — no call permission needed). Falls back to
+/// showing the number when no dialer is available (e.g. desktop/test).
+Future<void> dialHelpline(BuildContext context, String lang) async {
+  final uri = Uri(scheme: 'tel', path: '8850611287');
+  try {
+    final ok = await launchUrl(uri);
+    if (!ok && context.mounted) {
+      showFeedback(context, tr(lang, 'helplineNumber'), error: true);
+    }
+  } catch (_) {
+    if (context.mounted) {
+      showFeedback(context, tr(lang, 'helplineNumber'), error: true);
+    }
+  }
 }

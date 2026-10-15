@@ -1,9 +1,9 @@
-# KaamSetu — Architecture
+# Rozgari — Architecture
 
 ## Folder structure
 ```
 lib/
-  main.dart                        # ProviderScope + KaamSetuApp
+  main.dart                        # ProviderScope + RozgariApp
   app/
     app.dart                       # MaterialApp, onGenerateRoute, RootGate, HomeShell (tabs/drawer/demo sheet)
     theme.dart                     # HTML-derived tokens: #00231A/#825500, canvas, stadium CTAs

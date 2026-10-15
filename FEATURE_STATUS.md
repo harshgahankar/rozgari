@@ -1,4 +1,4 @@
-# KaamSetu — Feature Status
+# Rozgari — Feature Status
 Validated: `flutter analyze` (0 errors) • `flutter test` (8/8 pass, incl. full demo-flow test) •
 `flutter build web` succeeds. Windows build unavailable here (no VS toolchain — env limit, not app bug).
 

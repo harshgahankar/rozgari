@@ -69,7 +69,9 @@ void main() {
     expect(bad.ok, isFalse);
 
     // 13. Send offer → agreement created, worker notified
-    final offer = await ctl.sendOffer(jobId: job.id, workerId: 'w01');
+    final offerRes = await ctl.sendOffer(jobId: job.id, workerId: 'w01');
+    expect(offerRes.ok, isTrue, reason: offerRes.msg);
+    final offer = offerRes.offer!;
     expect(offer.employerConfirmed, isTrue);
     expect(
       ctl.state.notifications.any(

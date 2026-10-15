@@ -1,8 +1,8 @@
-# KaamSetu — Project Overview
+# Rozgari — Project Overview
 > **Beyond the Waiting Line — Connecting Hawkers to Better Employment Opportunities**
 
 ## What it is
-KaamSetu is a hyperlocal, accessible employment platform connecting informal workers
+Rozgari is a hyperlocal, accessible employment platform connecting informal workers
 (electricians, plumbers, carpenters, painters, masons, helpers, …) with nearby employers
 in Pune & Mumbai. This repo is a **frontend-only interactive prototype** (no backend):
 all data lives on-device in a single shared Riverpod state persisted with SharedPreferences.

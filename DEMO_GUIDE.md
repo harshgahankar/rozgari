@@ -1,4 +1,4 @@
-# KaamSetu — Demo Guide (for judges)
+# Rozgari — Demo Guide (for judges)
 
 ## Run the app
 ```bash
@@ -18,7 +18,7 @@ No login, no backend, no API keys. First launch opens **Language Selection** (Hi
   actions as one role are visible as the other; everything survives restart (SharedPreferences).
 
 ## 24-step judge walkthrough (≈6 min)
-1. Open KaamSetu → pick **हिंदी** → Continue.
+1. Open Rozgari → pick **हिंदी** → Continue.
 2. Landing → **काम ढूँढें / Find Work**.
 3. Role → **I Want Work** → Continue → profile form (prefilled for Ramesh) → **Preview & Save Passport** → lands on worker Home.
 4. Home: note name/trade/availability, live counts, recommended jobs.

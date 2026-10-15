@@ -1,11 +1,20 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:math' as math;
+
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:record/record.dart';
 
 import '../../app/theme.dart';
 import '../../core/constants/meta.dart';
 import '../../core/utils/matching.dart';
 import '../../core/utils/safety_rules.dart';
 import '../../core/widgets/common.dart';
+import '../../core/i18n/strings.dart';
+import '../../data/local/media_store.dart';
 import '../../data/models/enums.dart';
 import '../../data/models/models.dart';
 import '../../state/app_state.dart';
@@ -17,6 +26,7 @@ class ChowkTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final st = ref.watch(appControllerProvider);
     final ctl = ref.read(appControllerProvider.notifier);
+    final lang = st.lang;
     final w = st.currentWorker;
     final invites = st.invitations
         .where((i) => i.workerId == w.id)
@@ -40,9 +50,7 @@ class ChowkTab extends ConsumerWidget {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  avail
-                      ? 'CHOWK LIVE • You are visible to employers today'
-                      : 'CHOWK PAUSED • Employers cannot invite you',
+                  avail ? tr(lang, 'chowkLive') : tr(lang, 'chowkPaused'),
                   style: const TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w800,
@@ -60,8 +68,8 @@ class ChowkTab extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'मेरी आज की उपलब्धता • My availability',
+                Text(
+                  tr(lang, 'myAvailability'),
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
@@ -69,7 +77,7 @@ class ChowkTab extends ConsumerWidget {
                   ),
                 ),
                 Text(
-                  '${w.primaryTrade} • ${w.workArea} • ${w.preferredRadiusKm.toStringAsFixed(0)} km',
+                  '${tradeLabel(lang, w.primaryTrade)} • ${w.workArea} • ${w.preferredRadiusKm.toStringAsFixed(0)} km',
                   style: const TextStyle(color: Colors.white70, fontSize: 12.5),
                 ),
                 const SizedBox(height: 10),
@@ -82,12 +90,13 @@ class ChowkTab extends ConsumerWidget {
                             AvailabilityStatus.available,
                             discoverable: true,
                           );
-                          showFeedback(
-                            context,
-                            'Available today ✓ — employers can invite you',
-                          );
+                          showFeedback(context, tr(lang, 'availableToday'));
                         },
-                        child: Text(avail ? 'Available ✓' : 'Go Available'),
+                        child: Text(
+                          avail
+                              ? tr(lang, 'availableChk')
+                              : tr(lang, 'goAvailable'),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -98,24 +107,23 @@ class ChowkTab extends ConsumerWidget {
                             AvailabilityStatus.unavailable,
                             discoverable: false,
                           );
-                          showFeedback(
-                            context,
-                            'Paused — existing confirmed jobs unaffected',
-                          );
+                          showFeedback(context, tr(lang, 'pausedExisting'));
                         },
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.white,
                           side: const BorderSide(color: Colors.white54),
                         ),
-                        child: Text(avail ? 'Pause' : 'Paused'),
+                        child: Text(
+                          avail ? tr(lang, 'pause') : tr(lang, 'pausedChk'),
+                        ),
                       ),
                     ),
                   ],
                 ),
                 Row(
                   children: [
-                    const Text(
-                      'Employer discovery',
+                    Text(
+                      tr(lang, 'employerDiscovery'),
                       style: TextStyle(color: Colors.white70, fontSize: 12),
                     ),
                     const Spacer(),
@@ -127,13 +135,55 @@ class ChowkTab extends ConsumerWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 4),
+                Text(
+                  tr(lang, 'availDateL'),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    for (final d in const ['today', 'tomorrow'])
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text(
+                            d == 'today'
+                                ? tr(lang, 'today')
+                                : tr(lang, 'tomorrow'),
+                          ),
+                          selected: w.availableDate == d,
+                          onSelected: (_) => ctl.upsertWorkerProfile(
+                            w.copyWith(availableDate: d),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  trArgs(lang, 'radiusL', {
+                    'v': w.preferredRadiusKm.toStringAsFixed(0),
+                  }),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+                Slider(
+                  value: w.preferredRadiusKm.clamp(2, 25),
+                  min: 2,
+                  max: 25,
+                  divisions: 23,
+                  activeColor: KsColors.secondaryContainer,
+                  label: '${w.preferredRadiusKm.toStringAsFixed(0)} km',
+                  onChanged: (v) =>
+                      ctl.upsertWorkerProfile(w.copyWith(preferredRadiusKm: v)),
+                ),
               ],
             ),
           ),
         ),
-        const Text(
-          'Direct invitations from employers',
-          style: TextStyle(
+        Text(
+          tr(lang, 'directInvites'),
+          style: const TextStyle(
             fontWeight: FontWeight.w800,
             fontSize: 15,
             color: KsColors.primary,
@@ -141,10 +191,10 @@ class ChowkTab extends ConsumerWidget {
         ),
         const SizedBox(height: 6),
         if (invites.isEmpty)
-          const EmptyView(
+          EmptyView(
             icon: Icons.markunread_mailbox_outlined,
-            title: 'No invitations yet',
-            subtitle: 'When an employer invites you from Labour Chowk, it appears here with the job details.',
+            title: tr(lang, 'noInvites'),
+            subtitle: tr(lang, 'noInvitesSub'),
           )
         else
           for (final inv in invites)
@@ -172,11 +222,13 @@ class ChowkTab extends ConsumerWidget {
                                 ),
                               ),
                             ),
-                            StatusChip(inv.status.name.toUpperCase()),
+                            StatusChip(
+                              codeLabel(lang, inv.status.name).toUpperCase(),
+                            ),
                           ],
                         ),
                         Text(
-                          '${employerName(st, j)} • ${j.location} • ₹${j.payAmount.toStringAsFixed(0)}',
+                          '${employerName(st, j, lang)} • ${j.location} • ₹${j.payAmount.toStringAsFixed(0)}',
                           style: const TextStyle(
                             fontSize: 12,
                             color: KsColors.muted,
@@ -192,40 +244,46 @@ class ChowkTab extends ConsumerWidget {
                                   '/job',
                                   arguments: j.id,
                                 ),
-                                child: const Text('View job'),
+                                child: Text(tr(lang, 'viewJob')),
                               ),
                             ),
                             const SizedBox(width: 8),
                             if (inv.status == InvitationStatus.pending) ...[
                               Expanded(
                                 child: FilledButton.tonal(
-                                  onPressed: () {
-                                    ctl.respondInvitation(
+                                  onPressed: () async {
+                                    final r = await ctl.respondInvitation(
                                       inv.id,
                                       InvitationStatus.accepted,
                                     );
-                                    showFeedback(
-                                      context,
-                                      'Invitation accepted ✓',
-                                    );
+                                    if (context.mounted) {
+                                      showFeedback(
+                                        context,
+                                        r.msg,
+                                        error: !r.ok,
+                                      );
+                                    }
                                   },
-                                  child: const Text('Accept'),
+                                  child: Text(tr(lang, 'accept')),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: OutlinedButton(
-                                  onPressed: () {
-                                    ctl.respondInvitation(
+                                  onPressed: () async {
+                                    final r = await ctl.respondInvitation(
                                       inv.id,
                                       InvitationStatus.declined,
                                     );
-                                    showFeedback(
-                                      context,
-                                      'Invitation declined',
-                                    );
+                                    if (context.mounted) {
+                                      showFeedback(
+                                        context,
+                                        r.msg,
+                                        error: !r.ok,
+                                      );
+                                    }
                                   },
-                                  child: const Text('Decline'),
+                                  child: Text(tr(lang, 'decline')),
                                 ),
                               ),
                             ],
@@ -243,9 +301,9 @@ class ChowkTab extends ConsumerWidget {
             color: KsColors.amberBg,
             borderRadius: BorderRadius.circular(10),
           ),
-          child: const Text(
-            'Fair-wage benchmark: Helper ₹550 • Electrician ₹800 • Mason ₹900 per day (Pune, indicative). Never pay any advance fee.',
-            style: TextStyle(fontSize: 12, color: KsColors.secondary),
+          child: Text(
+            tr(lang, 'fairWage'),
+            style: const TextStyle(fontSize: 12, color: KsColors.secondary),
           ),
         ),
       ],
@@ -258,10 +316,11 @@ class PassportScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final st = ref.watch(appControllerProvider);
+    final lang = st.lang;
     final w = st.currentWorker;
     final u = st.currentWorkerUser;
     return Scaffold(
-      appBar: AppBar(title: const Text('Skill Passport')),
+      appBar: AppBar(title: Text(tr(lang, 'passport'))),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
         children: [
@@ -310,7 +369,7 @@ class PassportScreen extends ConsumerWidget {
                               ],
                             ),
                             Text(
-                              '${w.primaryTrade} • ${w.experienceYears} yrs experience',
+                              '${tradeLabel(lang, w.primaryTrade)} • ${trArgs(lang, 'yrsExp', {'n': '${w.experienceYears}'})}',
                               style: const TextStyle(
                                 color: Colors.white70,
                                 fontSize: 13,
@@ -356,73 +415,372 @@ class PassportScreen extends ConsumerWidget {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      _PStat('${w.completedJobs}', 'Jobs done'),
+                      _PStat('${w.completedJobs}', tr(lang, 'jobsDone')),
                       _PStat(
                         '₹${w.preferredPay.toStringAsFixed(0)}',
-                        'Expected/day',
+                        tr(lang, 'expectedDay'),
                       ),
-                      _PStat(w.availability.name, 'Status'),
+                      _PStat(
+                        codeLabel(lang, w.availability.name),
+                        tr(lang, 'statusL'),
+                      ),
                     ],
                   ),
                 ],
               ),
             ),
           ),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Work photos (optional)',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  const Text(
-                    'Add site photos later — employers trust visible work.',
-                    style: TextStyle(fontSize: 12, color: KsColors.muted),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      for (var i = 0; i < 3; i++)
-                        Container(
-                          width: 72,
-                          height: 72,
-                          margin: const EdgeInsets.only(right: 8),
-                          decoration: BoxDecoration(
-                            color: KsColors.surfaceContainer,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.add_a_photo_outlined,
-                            color: KsColors.muted,
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  OutlinedButton.icon(
-                    onPressed: () => showFeedback(
-                      context,
-                      'Photo upload is simulated in demo — kept optional by design',
-                    ),
-                    icon: const Icon(Icons.upload_outlined),
-                    label: const Text('Add photos (optional)'),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          const _PhotosCard(),
+          const _AudioCard(),
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
               onPressed: () => Navigator.pushNamed(context, '/profile'),
               icon: const Icon(Icons.edit_outlined),
-              label: const Text('Edit Skill Passport'),
+              label: Text(tr(lang, 'editPassportBtn')),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Skill Passport work photos: real gallery picks stored on-device
+/// (app documents dir) and persisted with the profile. Tap × to remove.
+class _PhotosCard extends ConsumerStatefulWidget {
+  const _PhotosCard();
+  @override
+  ConsumerState<_PhotosCard> createState() => _PhotosCardState();
+}
+
+class _PhotosCardState extends ConsumerState<_PhotosCard> {
+  bool _busy = false;
+
+  Future<void> _pick() async {
+    final lang = ref.read(appControllerProvider).lang;
+    setState(() => _busy = true);
+    try {
+      final files = await ImagePicker().pickMultiImage(imageQuality: 80);
+      if (files.isEmpty) return;
+      final paths = await persistPickedImages(files);
+      final ctl = ref.read(appControllerProvider.notifier);
+      final w = ref.read(appControllerProvider).currentWorker;
+      await ctl.upsertWorkerProfile(
+        w.copyWith(workPhotos: [...w.workPhotos, ...paths]),
+      );
+      if (mounted) showFeedback(context, tr(lang, 'photoSaved'));
+    } catch (_) {
+      if (mounted) showFeedback(context, tr(lang, 'photoFailed'), error: true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _remove(String path) async {
+    final lang = ref.read(appControllerProvider).lang;
+    final ctl = ref.read(appControllerProvider.notifier);
+    final w = ref.read(appControllerProvider).currentWorker;
+    await ctl.upsertWorkerProfile(
+      w.copyWith(
+        workPhotos: w.workPhotos.where((p) => p != path).toList(),
+      ),
+    );
+    await deleteMediaQuietly(path);
+    if (mounted) showFeedback(context, tr(lang, 'photoRemoved'));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final st = ref.watch(appControllerProvider);
+    final lang = st.lang;
+    final photos = st.currentWorker.workPhotos
+        .where((p) => p.isNotEmpty)
+        .toList();
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              tr(lang, 'workPhotos'),
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            Text(
+              tr(lang, 'workPhotosSub'),
+              style: const TextStyle(fontSize: 12, color: KsColors.muted),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final p in photos)
+                  Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.file(
+                          File(p),
+                          width: 72,
+                          height: 72,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => Container(
+                            width: 72,
+                            height: 72,
+                            color: KsColors.surfaceContainer,
+                            child: const Icon(
+                              Icons.broken_image_outlined,
+                              color: KsColors.muted,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        right: 2,
+                        top: 2,
+                        child: GestureDetector(
+                          onTap: () => _remove(p),
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              size: 13,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                if (photos.length < 6)
+                  GestureDetector(
+                    onTap: _busy ? null : _pick,
+                    child: Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        color: KsColors.surfaceContainer,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: _busy
+                          ? const Padding(
+                              padding: EdgeInsets.all(22),
+                              child: CircularProgressIndicator(strokeWidth: 3),
+                            )
+                          : const Icon(
+                              Icons.add_a_photo_outlined,
+                              color: KsColors.muted,
+                            ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            OutlinedButton.icon(
+              onPressed: _busy ? null : _pick,
+              icon: const Icon(Icons.upload_outlined),
+              label: Text(tr(lang, 'addPhotos')),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Skill Passport voice intro: record / play / delete, stored on-device.
+/// Fully offline — no backend, no cloud.
+class _AudioCard extends ConsumerStatefulWidget {
+  const _AudioCard();
+  @override
+  ConsumerState<_AudioCard> createState() => _AudioCardState();
+}
+
+class _AudioCardState extends ConsumerState<_AudioCard> {
+  AudioRecorder? _rec;
+  AudioPlayer? _player;
+  StreamSubscription<void>? _doneSub;
+  bool _recording = false;
+  bool _playing = false;
+  int _secs = 0;
+  Timer? _timer;
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _doneSub?.cancel();
+    _rec?.dispose();
+    _player?.dispose();
+    super.dispose();
+  }
+
+  bool _fileOk(String p) => p.isNotEmpty && File(p).existsSync();
+
+  String _mmss(int s) =>
+      '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
+
+  Future<void> _toggleRecord() async {
+    if (_recording) {
+      await _stopAndSave();
+      return;
+    }
+    final lang = ref.read(appControllerProvider).lang;
+    final rec = AudioRecorder();
+    final ok = await rec.hasPermission();
+    if (!ok) {
+      if (mounted) showFeedback(context, tr(lang, 'micDenied'), error: true);
+      await rec.dispose();
+      return;
+    }
+    await _player?.stop();
+    setState(() => _playing = false);
+    await rec.start(const RecordConfig(), path: await nextVoicePath());
+    _rec = rec;
+    setState(() {
+      _recording = true;
+      _secs = 0;
+    });
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _secs++);
+    });
+  }
+
+  Future<void> _stopAndSave() async {
+    final lang = ref.read(appControllerProvider).lang;
+    _timer?.cancel();
+    String? path;
+    try {
+      path = await _rec?.stop();
+    } catch (_) {}
+    await _rec?.dispose();
+    _rec = null;
+    setState(() => _recording = false);
+    if (path == null || path.isEmpty) return;
+    final ctl = ref.read(appControllerProvider.notifier);
+    final w = ref.read(appControllerProvider).currentWorker;
+    if (w.audioIntro.isNotEmpty) await deleteMediaQuietly(w.audioIntro);
+    await ctl.upsertWorkerProfile(w.copyWith(audioIntro: path));
+    if (mounted) showFeedback(context, tr(lang, 'audioSaved'));
+  }
+
+  Future<void> _togglePlay() async {
+    final w = ref.read(appControllerProvider).currentWorker;
+    if (!_fileOk(w.audioIntro) || _recording) return;
+    _player ??= AudioPlayer();
+    if (_playing) {
+      await _player!.stop();
+      setState(() => _playing = false);
+      return;
+    }
+    _doneSub?.cancel();
+    _doneSub = _player!.onPlayerComplete.listen((_) {
+      if (mounted) setState(() => _playing = false);
+    });
+    try {
+      await _player!.play(DeviceFileSource(w.audioIntro));
+      setState(() => _playing = true);
+    } catch (_) {
+      final lang = ref.read(appControllerProvider).lang;
+      if (mounted) showFeedback(context, tr(lang, 'photoFailed'), error: true);
+    }
+  }
+
+  Future<void> _delete() async {
+    final ctl = ref.read(appControllerProvider.notifier);
+    final w = ref.read(appControllerProvider).currentWorker;
+    final lang = ref.read(appControllerProvider).lang;
+    await _player?.stop();
+    setState(() => _playing = false);
+    await deleteMediaQuietly(w.audioIntro);
+    await ctl.upsertWorkerProfile(w.copyWith(audioIntro: ''));
+    if (mounted) showFeedback(context, tr(lang, 'audioDeleted'));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final st = ref.watch(appControllerProvider);
+    final lang = st.lang;
+    final has = _fileOk(st.currentWorker.audioIntro);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: _recording
+                    ? const Color(0xFFFFEBEE)
+                    : KsColors.successBg,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Icon(
+                _recording ? Icons.fiber_manual_record : Icons.mic_none,
+                color: _recording ? KsColors.danger : KsColors.primary,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tr(lang, 'audioIntro'),
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  Text(
+                    _recording
+                        ? '${tr(lang, 'recLive')} ${_mmss(_secs)}'
+                        : tr(lang, 'audioIntroSub'),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: KsColors.muted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (_recording)
+              FilledButton.tonalIcon(
+                onPressed: _toggleRecord,
+                icon: const Icon(Icons.stop, size: 18),
+                label: Text(tr(lang, 'recStop')),
+              )
+            else if (has) ...[
+              IconButton(
+                tooltip: tr(lang, _playing ? 'stopBtn' : 'playBtn'),
+                icon: Icon(
+                  _playing
+                      ? Icons.stop_circle_outlined
+                      : Icons.play_circle_outline,
+                  color: KsColors.primary,
+                ),
+                onPressed: _togglePlay,
+              ),
+              IconButton(
+                tooltip: tr(lang, 'deleteBtn'),
+                icon: const Icon(
+                  Icons.delete_outline,
+                  color: KsColors.muted,
+                ),
+                onPressed: _delete,
+              ),
+            ] else
+              FilledButton.tonalIcon(
+                onPressed: _toggleRecord,
+                icon: const Icon(Icons.mic, size: 18),
+                label: Text(tr(lang, 'recIntro')),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -457,24 +815,44 @@ class MyJobsScreen extends ConsumerStatefulWidget {
 }
 
 class _MyJobsScreenState extends ConsumerState<MyJobsScreen> {
-  String tab = 'Applications';
+  String tab = 'Applied';
   @override
   Widget build(BuildContext context) {
     final st = ref.watch(appControllerProvider);
     final ctl = ref.read(appControllerProvider.notifier);
+    final lang = st.lang;
+    String tabTr(String t) {
+      switch (t) {
+        case 'Shortlisted':
+          return tr(lang, 'tabShortlisted');
+        case 'Offers':
+          return tr(lang, 'tabOffers');
+        case 'Confirmed':
+          return tr(lang, 'tabConfirmed');
+        case 'In Progress':
+          return tr(lang, 'tabInProgress');
+        case 'Completed':
+          return tr(lang, 'tabCompleted');
+        case 'Cancelled':
+          return tr(lang, 'tabCancelled');
+        default:
+          return tr(lang, 'tabApplications');
+      }
+    }
+
     final mine = st.applications
         .where((a) => a.workerId == st.currentWorkerId)
         .toList();
     List<JobApplication> filtered;
-    if (tab == 'Offers') {
+    if (tab == 'Shortlisted') {
       filtered = mine
-          .where(
-            (a) =>
-                a.status == ApplicationStatus.offered ||
-                a.status == ApplicationStatus.shortlisted,
-          )
+          .where((a) => a.status == ApplicationStatus.shortlisted)
           .toList();
-    } else if (tab == 'Upcoming') {
+    } else if (tab == 'Offers') {
+      filtered = mine
+          .where((a) => a.status == ApplicationStatus.offered)
+          .toList();
+    } else if (tab == 'Confirmed') {
       filtered = mine
           .where((a) => a.status == ApplicationStatus.confirmed)
           .toList();
@@ -505,7 +883,7 @@ class _MyJobsScreenState extends ConsumerState<MyJobsScreen> {
     Job jobOf(JobApplication a) => st.jobs.firstWhere((j) => j.id == a.jobId);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('My Jobs')),
+      appBar: AppBar(title: Text(tr(lang, 'myJobs'))),
       body: Column(
         children: [
           SingleChildScrollView(
@@ -514,9 +892,10 @@ class _MyJobsScreenState extends ConsumerState<MyJobsScreen> {
             child: Row(
               children: [
                 for (final t in [
-                  'Applications',
+                  'Applied',
+                  'Shortlisted',
                   'Offers',
-                  'Upcoming',
+                  'Confirmed',
                   'In Progress',
                   'Completed',
                   'Cancelled',
@@ -524,7 +903,7 @@ class _MyJobsScreenState extends ConsumerState<MyJobsScreen> {
                   Padding(
                     padding: const EdgeInsets.only(right: 6),
                     child: ChoiceChip(
-                      label: Text(t),
+                      label: Text(tabTr(t)),
                       selected: tab == t,
                       onSelected: (_) => setState(() => tab = t),
                     ),
@@ -536,10 +915,10 @@ class _MyJobsScreenState extends ConsumerState<MyJobsScreen> {
             child: filtered.isEmpty
                 ? EmptyView(
                     icon: Icons.work_history_outlined,
-                    title: 'Nothing in $tab',
-                    subtitle: tab == 'Applications'
-                        ? 'Apply for a nearby job — it appears here and with the employer instantly.'
-                        : 'Items move here automatically as statuses change.',
+                    title: trArgs(lang, 'nothingIn', {'t': tabTr(tab)}),
+                    subtitle: tab == 'Applied'
+                        ? tr(lang, 'applyNearbySub')
+                        : tr(lang, 'itemsMoveSub'),
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
@@ -583,11 +962,11 @@ class _MyJobsScreenState extends ConsumerState<MyJobsScreen> {
                                       ),
                                     ),
                                   ),
-                                  StatusChip.app(a.status),
+                                  StatusChip.app(a.status, lang),
                                 ],
                               ),
                               Text(
-                                '${j.location} • ₹${j.payAmount.toStringAsFixed(0)} • Applied ${fmtDate(a.appliedAt)}',
+                                '${j.location} • ₹${j.payAmount.toStringAsFixed(0)} • ${trArgs(lang, 'appliedOn', {'d': fmtDate(a.appliedAt)})}',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: KsColors.muted,
@@ -595,12 +974,12 @@ class _MyJobsScreenState extends ConsumerState<MyJobsScreen> {
                               ),
                               if (agreement != null)
                                 Text(
-                                  'Work Promise v${agreement.version}: ${agreement.status.name}${agreement.workerConfirmed && agreement.employerConfirmed ? ' • both confirmed' : ''}',
+                                  "${tr(lang, 'workPromiseBtn')} v${agreement.version}: ${codeLabel(lang, agreement.status.name)}${agreement.workerConfirmed && agreement.employerConfirmed ? ' • ${tr(lang, 'bothConfirmed')}' : ''}",
                                   style: const TextStyle(fontSize: 12),
                                 ),
                               if (payment != null)
                                 Text(
-                                  'Payment (simulated): ${payment.status.name} • ₹${payment.amount.toStringAsFixed(0)}',
+                                  "${tr(lang, 'paymentSim')}: ${codeLabel(lang, payment.status.name)} • ₹${payment.amount.toStringAsFixed(0)}",
                                   style: const TextStyle(
                                     fontSize: 12,
                                     color: KsColors.secondary,
@@ -617,7 +996,7 @@ class _MyJobsScreenState extends ConsumerState<MyJobsScreen> {
                                       '/job',
                                       arguments: j.id,
                                     ),
-                                    child: const Text('Details'),
+                                    child: Text(tr(lang, 'details')),
                                   ),
                                   if (agreement != null)
                                     FilledButton.tonal(
@@ -626,7 +1005,7 @@ class _MyJobsScreenState extends ConsumerState<MyJobsScreen> {
                                         '/agreement',
                                         arguments: agreement.id,
                                       ),
-                                      child: const Text('Work Promise'),
+                                      child: Text(tr(lang, 'workPromiseBtn')),
                                     ),
                                   if (a.status == ApplicationStatus.offered &&
                                       agreement != null)
@@ -636,13 +1015,11 @@ class _MyJobsScreenState extends ConsumerState<MyJobsScreen> {
                                         '/agreement',
                                         arguments: agreement.id,
                                       ),
-                                      child: const Text('Review offer'),
+                                      child: Text(tr(lang, 'reviewOffer')),
                                     ),
                                   if (a.status == ApplicationStatus.offered &&
                                       agreement == null)
-                                    const Text(
-                                      'Offer incoming — Work Promise generates shortly.',
-                                    ),
+                                    Text(tr(lang, 'offerIncoming')),
                                   if (a.status == ApplicationStatus.applied)
                                     TextButton(
                                       onPressed: () {
@@ -656,7 +1033,7 @@ class _MyJobsScreenState extends ConsumerState<MyJobsScreen> {
                                           error: !r.ok,
                                         );
                                       },
-                                      child: const Text('Withdraw'),
+                                      child: Text(tr(lang, 'withdraw')),
                                     ),
                                   if (a.status == ApplicationStatus.confirmed)
                                     FilledButton.tonal(
@@ -671,7 +1048,7 @@ class _MyJobsScreenState extends ConsumerState<MyJobsScreen> {
                                           error: !r.ok,
                                         );
                                       },
-                                      child: const Text('Start work'),
+                                      child: Text(tr(lang, 'startWork')),
                                     ),
                                   if (a.status == ApplicationStatus.inProgress)
                                     FilledButton(
@@ -692,9 +1069,7 @@ class _MyJobsScreenState extends ConsumerState<MyJobsScreen> {
                                           error: !r.ok,
                                         );
                                       },
-                                      child: const Text(
-                                        'Mark complete (simulated)',
-                                      ),
+                                      child: Text(tr(lang, 'markComplete')),
                                     ),
                                 ],
                               ),
@@ -725,19 +1100,30 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
   @override
   Widget build(BuildContext context) {
     final st = ref.watch(appControllerProvider);
+    final lang = st.lang;
     List<Job> results = [];
     if (parsed != null) {
+      final now = DateTime.now();
+      final want = parsed!['date'] == 'tomorrow'
+          ? DateTime(now.year, now.month, now.day + 1)
+          : DateTime(now.year, now.month, now.day);
       results = st.jobs.where((j) {
         if (j.status != JobStatus.open) return false;
         if (parsed!['trade']!.isNotEmpty && j.category != parsed!['trade'])
           return false;
         if (parsed!['city']!.isNotEmpty && j.city != parsed!['city'])
           return false;
+        final sd = j.startDate;
+        if (sd.year != want.year ||
+            sd.month != want.month ||
+            sd.day != want.day) {
+          return false;
+        }
         return true;
       }).toList();
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('Kaam Bolo • Voice Search')),
+      appBar: AppBar(title: Text(tr(lang, 'voiceTitle'))),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -753,15 +1139,15 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
                     size: 44,
                   ),
                   const SizedBox(height: 6),
-                  const Text(
-                    'बोलकर खोजें — real mic where supported',
-                    style: TextStyle(
+                  Text(
+                    tr(lang, 'speakSearch'),
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const Text(
-                    'Microphone uses the device speech engine if available. Otherwise use the transparent demo parse below — never faked as real.',
+                  Text(
+                    tr(lang, 'micHonest'),
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.white70, fontSize: 12),
                   ),
@@ -770,16 +1156,16 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: () => showFeedback(
-                            context,
-                            'Microphone not available on this device build — use demo parse below (honest fallback)',
+                          onPressed: () => showModalBottomSheet(
+                            context: context,
+                            builder: (_) => _ListeningSheet(lang: lang),
                           ),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.white,
                             side: const BorderSide(color: Colors.white54),
                           ),
                           icon: const Icon(Icons.mic_none),
-                          label: const Text('Try microphone'),
+                          label: Text(tr(lang, 'tryMic')),
                         ),
                       ),
                     ],
@@ -788,18 +1174,16 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
               ),
             ),
           ),
-          const Text(
-            'Type or paste what you would say *',
-            style: TextStyle(fontWeight: FontWeight.w800),
+          Text(
+            tr(lang, 'typeSay'),
+            style: const TextStyle(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
           TextField(
             controller: _ctl,
             minLines: 2,
             maxLines: 3,
-            decoration: const InputDecoration(
-              hintText: 'e.g. Mujhe kal Pune mein plumber ka kaam chahiye',
-            ),
+            decoration: InputDecoration(hintText: tr(lang, 'sayHint')),
           ),
           const SizedBox(height: 8),
           SizedBox(
@@ -808,42 +1192,48 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
               onPressed: () =>
                   setState(() => parsed = parseKaamBolo(_ctl.text)),
               icon: const Icon(Icons.record_voice_over_outlined),
-              label: const Text('Interpret (demo parse)'),
+              label: Text(tr(lang, 'interpret')),
             ),
           ),
           if (parsed != null) ...[
             const SizedBox(height: 10),
-            const Text(
-              'Interpretation — tap to correct',
-              style: TextStyle(fontWeight: FontWeight.w800),
+            Text(
+              tr(lang, 'interpretHead'),
+              style: const TextStyle(fontWeight: FontWeight.w800),
             ),
             Wrap(
               spacing: 8,
               children: [
                 _FixChip(
                   label:
-                      'Trade: ${parsed!['trade']!.isEmpty ? 'any' : parsed!['trade']}',
+                      "${tr(lang, 'tradeF')}: ${parsed!['trade']!.isEmpty ? tr(lang, 'any') : tradeLabel(lang, parsed!['trade']!)}",
                   options: ['Any', ...kTrades],
+                  display: (o) =>
+                      o == 'Any' ? tr(lang, 'any') : tradeLabel(lang, o),
                   onPick: (v) =>
                       setState(() => parsed!['trade'] = v == 'Any' ? '' : v),
                 ),
                 _FixChip(
                   label:
-                      'City: ${parsed!['city']!.isEmpty ? 'any' : parsed!['city']}',
+                      "${tr(lang, 'cityF')}: ${parsed!['city']!.isEmpty ? tr(lang, 'any') : parsed!['city']}",
                   options: const ['Any', 'Pune', 'Mumbai'],
+                  display: (o) => o == 'Any' ? tr(lang, 'any') : o,
                   onPick: (v) =>
                       setState(() => parsed!['city'] = v == 'Any' ? '' : v),
                 ),
                 _FixChip(
-                  label: 'Date: ${parsed!['date']}',
+                  label:
+                      "${tr(lang, 'dateL')}: ${parsed!['date'] == 'today' ? tr(lang, 'today') : tr(lang, 'tomorrow')}",
                   options: const ['today', 'tomorrow'],
+                  display: (o) =>
+                      o == 'today' ? tr(lang, 'today') : tr(lang, 'tomorrow'),
                   onPick: (v) => setState(() => parsed!['date'] = v),
                 ),
               ],
             ),
             const SizedBox(height: 6),
             Text(
-              '${results.length} matching jobs',
+              trArgs(lang, 'matchingJobs', {'n': '${results.length}'}),
               style: const TextStyle(
                 fontWeight: FontWeight.w800,
                 color: KsColors.successDeep,
@@ -852,7 +1242,8 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
             for (final j in results.take(6))
               JobCard(
                 job: j,
-                employerName: employerName(st, j),
+                lang: lang,
+                employerName: employerName(st, j, lang),
                 safetyFlags: safetyFlagsForJob(j),
                 onTap: () =>
                     Navigator.pushNamed(context, '/job', arguments: j.id),
@@ -862,13 +1253,130 @@ class _VoiceScreenState extends ConsumerState<VoiceScreen> {
                 saved: st.savedJobIds.contains(j.id),
               ),
             if (results.isEmpty)
-              const EmptyView(
+              EmptyView(
                 icon: Icons.search_off_outlined,
-                title: 'Nothing matched',
-                subtitle: 'Correct a chip above or clear the trade filter.',
+                title: tr(lang, 'nothingMatched'),
+                subtitle: tr(lang, 'nothingMatchedSub'),
               ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// Listening UX for "Try microphone": a pulsing mic + live bars while the
+/// (simulated) engine listens, then an honest fallback — real speech
+/// recognition is not bundled in this offline demo.
+class _ListeningSheet extends StatefulWidget {
+  final String lang;
+  const _ListeningSheet({required this.lang});
+  @override
+  State<_ListeningSheet> createState() => _ListeningSheetState();
+}
+
+class _ListeningSheetState extends State<_ListeningSheet>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    Future.delayed(const Duration(milliseconds: 3500), () {
+      if (!mounted) return;
+      Navigator.pop(context);
+      showFeedback(context, tr(widget.lang, 'micUnavailable'));
+    });
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lang = widget.lang;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ScaleTransition(
+              scale: Tween(begin: 1.0, end: 1.16).animate(
+                CurvedAnimation(parent: _pulse, curve: Curves.easeInOut),
+              ),
+              child: Container(
+                width: 84,
+                height: 84,
+                decoration: BoxDecoration(
+                  color: KsColors.primary,
+                  borderRadius: BorderRadius.circular(42),
+                  boxShadow: [
+                    BoxShadow(
+                      color: KsColors.primary.withOpacity(.35),
+                      blurRadius: 24,
+                      spreadRadius: 4,
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.mic, color: Colors.white, size: 40),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              tr(lang, 'listening'),
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 18,
+                color: KsColors.primary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              tr(lang, 'speakNow'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 13, color: KsColors.muted),
+            ),
+            const SizedBox(height: 12),
+            AnimatedBuilder(
+              animation: _pulse,
+              builder: (_, _) => Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (var i = 0; i < 7; i++)
+                    Container(
+                      width: 5,
+                      height:
+                          10 +
+                          26 *
+                              (0.5 +
+                                  0.5 *
+                                      math.sin(
+                                        _pulse.value * 6.28 + i * 0.9,
+                                      )),
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      decoration: BoxDecoration(
+                        color: KsColors.secondary,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(tr(lang, 'cancelBtn')),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -878,10 +1386,12 @@ class _FixChip extends StatelessWidget {
   final String label;
   final List<String> options;
   final void Function(String) onPick;
+  final String Function(String)? display;
   const _FixChip({
     required this.label,
     required this.options,
     required this.onPick,
+    this.display,
   });
   @override
   Widget build(BuildContext context) => ActionChip(
@@ -895,7 +1405,7 @@ class _FixChip extends StatelessWidget {
           children: [
             for (final o in options)
               ListTile(
-                title: Text(o),
+                title: Text(display != null ? display!(o) : o),
                 onTap: () {
                   onPick(o);
                   Navigator.pop(context);
@@ -919,6 +1429,7 @@ class _SafetyScreenState extends ConsumerState<SafetyScreen> {
   @override
   Widget build(BuildContext context) {
     final st = ref.watch(appControllerProvider);
+    final lang = st.lang;
     final flagged = st.jobs
         .map((j) => (j, safetyFlagsForJob(j)))
         .where(
@@ -928,44 +1439,44 @@ class _SafetyScreenState extends ConsumerState<SafetyScreen> {
         )
         .toList();
     return Scaffold(
-      appBar: AppBar(title: const Text('Kaam Suraksha • Safety')),
+      appBar: AppBar(title: Text(tr(lang, 'safetyTitleFull'))),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Card(
+          Card(
             child: Padding(
-              padding: EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'How we flag risk (rule-based, explained)',
-                    style: TextStyle(
+                    tr(lang, 'riskHow'),
+                    style: const TextStyle(
                       fontWeight: FontWeight.w800,
                       color: KsColors.primary,
                     ),
                   ),
                   Text(
-                    '• Missing wage  • Advance-fee demand  • Incomplete description  • OTP/Aadhaar request  • Missing location',
-                    style: TextStyle(fontSize: 12.5),
+                    tr(lang, 'riskRules'),
+                    style: const TextStyle(fontSize: 12.5),
                   ),
                 ],
               ),
             ),
           ),
           TextField(
-            decoration: const InputDecoration(
-              hintText: 'Search flagged listings…',
-              prefixIcon: Icon(Icons.search),
+            decoration: InputDecoration(
+              hintText: tr(lang, 'searchFlagged'),
+              prefixIcon: const Icon(Icons.search),
             ),
             onChanged: (v) => setState(() => q = v),
           ),
           const SizedBox(height: 8),
           if (flagged.isEmpty)
-            const EmptyView(
+            EmptyView(
               icon: Icons.shield_outlined,
-              title: 'No flagged listings',
-              subtitle: 'All current listings pass the rule checks. Reporting still available on every job detail screen.',
+              title: tr(lang, 'noFlagged'),
+              subtitle: tr(lang, 'noFlaggedSub'),
             ),
           for (final e in flagged)
             Card(
@@ -983,30 +1494,30 @@ class _SafetyScreenState extends ConsumerState<SafetyScreen> {
                   ),
                 ),
                 subtitle: Text(
-                  e.$2.join(' • '),
+                  e.$2.map((f) => flagLabel(lang, f)).join(' • '),
                   style: const TextStyle(fontSize: 12),
                 ),
                 trailing: TextButton(
-                  child: const Text('Review'),
+                  child: Text(tr(lang, 'review')),
                   onPressed: () =>
                       Navigator.pushNamed(context, '/job', arguments: e.$1.id),
                 ),
               ),
             ),
           const SizedBox(height: 8),
-          const Text(
-            'Site safety basics',
-            style: TextStyle(
+          Text(
+            tr(lang, 'safetyBasics'),
+            style: const TextStyle(
               fontWeight: FontWeight.w800,
               color: KsColors.primary,
             ),
           ),
-          const Card(
+          Card(
             child: Padding(
-              padding: EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
               child: Text(
-                'Helmet • Gloves • Harness for height • Clean water • First-aid box. Stop work and report if safety gear is missing.',
-                style: TextStyle(fontSize: 13),
+                tr(lang, 'safetyBasicsBody'),
+                style: const TextStyle(fontSize: 13),
               ),
             ),
           ),
@@ -1029,37 +1540,42 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
   bool done = false;
   @override
   Widget build(BuildContext context) {
+    final st = ref.watch(appControllerProvider);
+    final lang = st.lang;
     return Scaffold(
-      appBar: AppBar(title: const Text('Report listing')),
+      appBar: AppBar(title: Text(tr(lang, 'reportTitle'))),
       body: done
-          ? const EmptyView(
+          ? EmptyView(
               icon: Icons.check_circle_outline,
-              title: 'Report submitted (simulated)',
-              subtitle: 'Thank you. Our demo moderation queue received it. No real enforcement action is taken in this prototype.',
+              title: tr(lang, 'reportDone'),
+              subtitle: tr(lang, 'reportDoneSub'),
             )
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                const Text(
-                  'Category *',
-                  style: TextStyle(fontWeight: FontWeight.w800),
+                Text(
+                  tr(lang, 'categoryL'),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 8,
                   children: [
-                    for (final c in [
-                      'Advance fee asked',
-                      'Wrong wages',
-                      'Unsafe work',
-                      'Fake location',
-                      'Abuse / harassment',
-                      'Other',
+                    for (final c in const [
+                      ('catAdvance', 'Advance fee asked'),
+                      ('catWages', 'Wrong wages'),
+                      ('catUnsafe', 'Unsafe work'),
+                      ('catFake', 'Fake location'),
+                      ('catAbuse', 'Abuse / harassment'),
+                      ('catOther', 'Other'),
                     ])
                       ChoiceChip(
-                        label: Text(c, style: const TextStyle(fontSize: 12)),
-                        selected: cat == c,
-                        onSelected: (_) => setState(() => cat = c),
+                        label: Text(
+                          tr(lang, c.$1),
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        selected: cat == c.$2,
+                        onSelected: (_) => setState(() => cat = c.$2),
                       ),
                   ],
                 ),
@@ -1068,9 +1584,9 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                   controller: _desc,
                   minLines: 3,
                   maxLines: 5,
-                  decoration: const InputDecoration(
-                    labelText: 'What happened? *',
-                    hintText: 'Describe briefly…',
+                  decoration: InputDecoration(
+                    labelText: tr(lang, 'whatHappened'),
+                    hintText: tr(lang, 'describeHint'),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -1079,11 +1595,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                   child: FilledButton.icon(
                     onPressed: () async {
                       if (_desc.text.trim().length < 5) {
-                        showFeedback(
-                          context,
-                          'Please add a short description',
-                          error: true,
-                        );
+                        showFeedback(context, tr(lang, 'addDesc'), error: true);
                         return;
                       }
                       await ref
@@ -1096,7 +1608,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                       setState(() => done = true);
                     },
                     icon: const Icon(Icons.flag_outlined),
-                    label: const Text('Submit simulated report'),
+                    label: Text(tr(lang, 'submitReport')),
                   ),
                 ),
               ],
@@ -1116,6 +1628,7 @@ class _WelfareScreenState extends ConsumerState<WelfareScreen> {
   @override
   Widget build(BuildContext context) {
     final st = ref.watch(appControllerProvider);
+    final lang = st.lang;
     final list = st.welfare
         .where(
           (w) =>
@@ -1126,24 +1639,24 @@ class _WelfareScreenState extends ConsumerState<WelfareScreen> {
         )
         .toList();
     return Scaffold(
-      appBar: AppBar(title: const Text('Welfare Hub')),
+      appBar: AppBar(title: Text(tr(lang, 'welfare'))),
       body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
             child: TextField(
-              decoration: const InputDecoration(
-                hintText: 'Search schemes, documents…',
-                prefixIcon: Icon(Icons.search),
+              decoration: InputDecoration(
+                hintText: tr(lang, 'welfareSearch'),
+                prefixIcon: const Icon(Icons.search),
               ),
               onChanged: (v) => setState(() => q = v),
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              'Curated information only — we never decide eligibility. Verify at official centres.',
-              style: TextStyle(fontSize: 12, color: KsColors.muted),
+              tr(lang, 'curatedNote'),
+              style: const TextStyle(fontSize: 12, color: KsColors.muted),
             ),
           ),
           Expanded(
@@ -1178,7 +1691,7 @@ class _WelfareScreenState extends ConsumerState<WelfareScreen> {
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              'Checklist: ${w.checklist}',
+                              trArgs(lang, 'checklist', {'v': w.checklist}),
                               style: const TextStyle(
                                 fontSize: 12.5,
                                 fontWeight: FontWeight.w600,
@@ -1213,6 +1726,7 @@ class NotificationsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final st = ref.watch(appControllerProvider);
     final ctl = ref.read(appControllerProvider.notifier);
+    final lang = st.lang;
     final uid = st.role == UserRole.worker
         ? st.currentWorkerId
         : st.currentEmployerId;
@@ -1223,19 +1737,19 @@ class NotificationsScreen extends ConsumerWidget {
         .toList();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: Text(tr(lang, 'notifications')),
         actions: [
           TextButton(
             onPressed: () => ctl.markAllRead(uid),
-            child: const Text('Mark all read'),
+            child: Text(tr(lang, 'markAllRead')),
           ),
         ],
       ),
       body: list.isEmpty
-          ? const EmptyView(
+          ? EmptyView(
               icon: Icons.notifications_none_outlined,
-              title: 'All caught up',
-              subtitle: 'Applications, offers, agreements and payments notify you here.',
+              title: tr(lang, 'allCaughtUp'),
+              subtitle: tr(lang, 'notifSub'),
             )
           : ListView.builder(
               padding: const EdgeInsets.all(12),
@@ -1257,26 +1771,36 @@ class NotificationsScreen extends ConsumerWidget {
                       ),
                     ),
                     subtitle: Text(
-                      '${n.body}\n${_ago(n.createdAt)}',
+                      '${n.body}\n${agoLabel(lang, n.createdAt)}',
                       style: const TextStyle(fontSize: 12.5),
                     ),
                     isThreeLine: true,
                     onTap: () {
                       ctl.markRead(n.id);
-                      if (n.refId != null && n.refId!.startsWith('j'))
-                        Navigator.pushNamed(
-                          context,
-                          '/job',
-                          arguments: n.refId,
-                        );
-                      else if (n.refId != null && n.refId!.startsWith('g'))
+                      final isWorker = st.role == UserRole.worker;
+                      if (n.refId != null && n.refId!.startsWith('j')) {
+                        if (isWorker) {
+                          Navigator.pushNamed(
+                            context,
+                            '/job',
+                            arguments: n.refId,
+                          );
+                        } else {
+                          Navigator.pushNamed(
+                            context,
+                            '/eapplications',
+                            arguments: n.refId,
+                          );
+                        }
+                      } else if (n.refId != null && n.refId!.startsWith('g')) {
                         Navigator.pushNamed(
                           context,
                           '/agreement',
                           arguments: n.refId,
                         );
-                      else if (st.role == UserRole.worker)
+                      } else if (isWorker) {
                         Navigator.pushNamed(context, '/myjobs');
+                      }
                     },
                   ),
                 );
@@ -1284,12 +1808,4 @@ class NotificationsScreen extends ConsumerWidget {
             ),
     );
   }
-}
-
-String _ago(DateTime d) {
-  final m = DateTime.now().difference(d).inMinutes;
-  if (m < 60) return '$m min ago';
-  final h = m ~/ 60;
-  if (h < 24) return '$h hr ago';
-  return '${h ~/ 24} days ago';
 }

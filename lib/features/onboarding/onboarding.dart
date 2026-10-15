@@ -5,34 +5,30 @@ import '../../app/theme.dart';
 import '../../core/constants/meta.dart';
 import '../../core/widgets/common.dart';
 import '../../data/models/enums.dart';
+import '../../data/models/models.dart';
+import '../../core/i18n/strings.dart';
 import '../../state/app_state.dart';
 
-const langCards = [
-  (
-    'hi',
-    'हिंदी',
-    'Hindi',
-    'नमस्ते, अपनी पसंदीदा भाषा चुनें',
-    'अ',
-    'डिफ़ॉल्ट भाषा • Most popular',
-  ),
-  (
-    'mr',
-    'मराठी',
-    'Marathi',
-    'नमस्कार, कामाच्या नव्या संधी शोधा',
-    'म',
-    'महाराष्ट्र व गोवा विभाग',
-  ),
-  (
-    'en',
-    'English',
-    'All India',
-    'Find nearby skilled & daily wage work',
-    'Aa',
-    'Universal terms & wage slips',
-  ),
-];
+/// Language cards built from current lang via tr() — EN/HI only.
+List<(String, String, String, String, String, String)> langCards(String lang) =>
+    [
+      (
+        'hi',
+        tr(lang, 'langHiName'),
+        tr(lang, 'langHiSub'),
+        tr(lang, 'langHiTag'),
+        tr(lang, 'langGlyphHi'),
+        tr(lang, 'langHiFoot'),
+      ),
+      (
+        'en',
+        tr(lang, 'langEnName'),
+        tr(lang, 'langEnSub'),
+        tr(lang, 'langEnTag'),
+        tr(lang, 'langGlyphEn'),
+        tr(lang, 'langEnFoot'),
+      ),
+    ];
 
 class LanguageScreen extends ConsumerWidget {
   const LanguageScreen({super.key});
@@ -72,9 +68,9 @@ class LanguageScreen extends ConsumerWidget {
                   ),
                 ),
                 const Spacer(),
-                const Text(
-                  'STEP 1 OF 3 • चरण १',
-                  style: TextStyle(
+                Text(
+                  tr(lang, 'step1of3'),
+                  style: const TextStyle(
                     fontSize: 11,
                     color: KsColors.muted,
                     fontWeight: FontWeight.w700,
@@ -83,9 +79,9 @@ class LanguageScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 18),
-            const Text(
-              'अपनी भाषा चुनें',
-              style: TextStyle(
+            Text(
+              tr(lang, 'chooseLang'),
+              style: const TextStyle(
                 fontFamily: 'Plus Jakarta Sans',
                 fontWeight: FontWeight.w800,
                 fontSize: 30,
@@ -94,9 +90,11 @@ class LanguageScreen extends ConsumerWidget {
             ),
             Row(
               children: [
-                const Text(
-                  'Choose Your Language',
-                  style: TextStyle(
+                Text(
+                  lang == 'hi'
+                      ? tr('en', 'chooseLang')
+                      : tr('hi', 'chooseLang'),
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: KsColors.secondary,
@@ -112,9 +110,9 @@ class LanguageScreen extends ConsumerWidget {
                     color: KsColors.amberBg,
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Text(
-                    'मदद उपलब्ध',
-                    style: TextStyle(
+                  child: Text(
+                    tr(lang, 'helpAvailable'),
+                    style: const TextStyle(
                       fontSize: 11,
                       color: KsColors.secondary,
                       fontWeight: FontWeight.w700,
@@ -124,9 +122,9 @@ class LanguageScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 6),
-            const Text(
-              'You can change this anytime or use voice assistance for full audio support across all screens.',
-              style: TextStyle(color: KsColors.muted, fontSize: 13),
+            Text(
+              tr(lang, 'chooseLangHint'),
+              style: const TextStyle(color: KsColors.muted, fontSize: 13),
             ),
             const SizedBox(height: 14),
             Container(
@@ -147,21 +145,21 @@ class LanguageScreen extends ConsumerWidget {
                     child: const Icon(Icons.volume_up, color: KsColors.primary),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'बोलकर सुनें',
-                          style: TextStyle(
+                          tr(lang, 'listenAloud'),
+                          style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w800,
                             fontSize: 16,
                           ),
                         ),
                         Text(
-                          'Audio prompt: "अपनी भाषा चुनिए"',
-                          style: TextStyle(
+                          tr(lang, 'audioPrompt'),
+                          style: const TextStyle(
                             color: KsColors.primaryFixedDim,
                             fontSize: 12,
                           ),
@@ -178,9 +176,9 @@ class LanguageScreen extends ConsumerWidget {
                       color: KsColors.successDeep,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text(
-                      'LIVE VOICE',
-                      style: TextStyle(
+                    child: Text(
+                      tr(lang, 'liveVoice'),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
@@ -191,7 +189,7 @@ class LanguageScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 14),
-            for (final l in langCards)
+            for (final l in langCards(lang))
               _LangCard(
                 code: l.$1,
                 name: l.$2,
@@ -207,14 +205,20 @@ class LanguageScreen extends ConsumerWidget {
                 color: KsColors.successBg.withOpacity(.6),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.verified_user_outlined, color: KsColors.primary),
-                  SizedBox(width: 8),
+                  const Icon(
+                    Icons.verified_user_outlined,
+                    color: KsColors.primary,
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'कामसेतु का वादा: कोई फ़ीस नहीं, सीधा काम और पूरी पारदर्शिता.',
-                      style: TextStyle(fontSize: 12.5, color: KsColors.primary),
+                      tr(lang, 'promiseNoFee'),
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: KsColors.primary,
+                      ),
                     ),
                   ),
                 ],
@@ -235,13 +239,13 @@ class LanguageScreen extends ConsumerWidget {
                 child: FilledButton.icon(
                   onPressed: () => Navigator.pushNamed(context, '/landing'),
                   icon: const Icon(Icons.arrow_forward),
-                  label: const Text('आगे बढ़ें • Continue'),
+                  label: Text(tr(lang, 'continueBtn')),
                 ),
               ),
               const SizedBox(height: 6),
-              const Text(
-                'अगला कदम: अपनी भूमिका चुनें (Worker / Employer)',
-                style: TextStyle(fontSize: 11, color: KsColors.muted),
+              Text(
+                tr(lang, 'nextIsRole'),
+                style: const TextStyle(fontSize: 11, color: KsColors.muted),
               ),
             ],
           ),
@@ -265,6 +269,7 @@ class _LangCard extends ConsumerWidget {
   });
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final lang = ref.watch(appControllerProvider.select((s) => s.lang));
     return Card(
       color: selected ? const Color(0xFFF2F7F4) : Colors.white,
       shape: RoundedRectangleBorder(
@@ -278,7 +283,8 @@ class _LangCard extends ConsumerWidget {
         borderRadius: BorderRadius.circular(14),
         onTap: () {
           ref.read(appControllerProvider.notifier).setLang(code);
-          showFeedback(context, 'Language: $name');
+          final v = code == 'hi' ? tr(lang, 'hindi') : tr(lang, 'english');
+          showFeedback(context, trArgs(lang, 'langChanged', {'v': v}));
         },
         child: Padding(
           padding: const EdgeInsets.all(14),
@@ -380,10 +386,11 @@ class _LangCard extends ConsumerWidget {
   }
 }
 
-class LandingScreen extends StatelessWidget {
+class LandingScreen extends ConsumerWidget {
   const LandingScreen({super.key});
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lang = ref.watch(appControllerProvider.select((s) => s.lang));
     return Scaffold(
       body: SafeArea(
         child: ListView(
@@ -405,23 +412,23 @@ class LandingScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Column(
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
                         Text(
-                          'कामसेतू',
-                          style: TextStyle(
+                          tr(lang, 'appName'),
+                          style: const TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 16,
                             color: KsColors.primary,
                           ),
                         ),
-                        SizedBox(width: 6),
+                        const SizedBox(width: 6),
                         Text(
-                          'PUNE',
-                          style: TextStyle(
+                          tr(lang, 'pune'),
+                          style: const TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
                             color: KsColors.successDeep,
@@ -430,8 +437,11 @@ class LandingScreen extends StatelessWidget {
                       ],
                     ),
                     Text(
-                      'KAAMSETU • DIGITAL CHOWK',
-                      style: TextStyle(fontSize: 9.5, color: KsColors.muted),
+                      tr(lang, 'digitalChowk'),
+                      style: const TextStyle(
+                        fontSize: 9.5,
+                        color: KsColors.muted,
+                      ),
                     ),
                   ],
                 ),
@@ -445,9 +455,9 @@ class LandingScreen extends StatelessWidget {
                     color: KsColors.surfaceContainer,
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Text(
-                    'EN • हिंदी • मराठी',
-                    style: TextStyle(
+                  child: Text(
+                    'EN • ${tr(lang, 'hindi')}',
+                    style: const TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w700,
                     ),
@@ -462,14 +472,18 @@ class LandingScreen extends StatelessWidget {
                 color: KsColors.successBg,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.circle, size: 10, color: KsColors.successDeep),
-                  SizedBox(width: 8),
+                  const Icon(
+                    Icons.circle,
+                    size: 10,
+                    color: KsColors.successDeep,
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      '480+ Daily wage & skilled jobs live today in Pune',
-                      style: TextStyle(
+                      '480+ ${tr(lang, 'liveJobs')}',
+                      style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: KsColors.successDeep,
@@ -477,8 +491,8 @@ class LandingScreen extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'LIVE',
-                    style: TextStyle(
+                    tr(lang, 'live'),
+                    style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                       color: KsColors.successDeep,
@@ -488,18 +502,18 @@ class LandingScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
-            const Text(
-              'BEYOND THE WAITING LINE',
-              style: TextStyle(
+            Text(
+              tr(lang, 'beyondLine'),
+              style: const TextStyle(
                 fontSize: 11,
                 letterSpacing: 1.4,
                 color: KsColors.secondary,
                 fontWeight: FontWeight.w800,
               ),
             ),
-            const Text(
-              'Your Skills.\nYour Work.\nYour Tomorrow.',
-              style: TextStyle(
+            Text(
+              '${tr(lang, 'hero1')}\n${tr(lang, 'hero2')}\n${tr(lang, 'hero3')}',
+              style: const TextStyle(
                 fontFamily: 'Plus Jakarta Sans',
                 fontWeight: FontWeight.w800,
                 fontSize: 30,
@@ -507,16 +521,13 @@ class LandingScreen extends StatelessWidget {
                 color: KsColors.primary,
               ),
             ),
-            const Text(
-              'काम आपकी पहचान, अवसर आपका अधिकार',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: KsColors.primary,
-              ),
+            Text(
+              tr(lang, 'heroSub'),
+              style: const TextStyle(color: KsColors.muted, fontSize: 13.5),
             ),
-            const Text(
-              'Connect directly with trusted local jobs in Pune & nearby. Transparent daily wages, no commission, no resume needed.',
-              style: TextStyle(color: KsColors.muted, fontSize: 13.5),
+            Text(
+              tr(lang, 'heroSub2'),
+              style: const TextStyle(color: KsColors.muted, fontSize: 13.5),
             ),
             const SizedBox(height: 12),
             Card(
@@ -524,26 +535,26 @@ class LandingScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(14),
                 child: Column(
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.circle,
                           size: 10,
                           color: KsColors.successDeep,
                         ),
-                        SizedBox(width: 6),
+                        const SizedBox(width: 6),
                         Text(
-                          "TODAY'S VERIFIED CHOWK",
-                          style: TextStyle(
+                          tr(lang, 'todayChowk'),
+                          style: const TextStyle(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w800,
                             color: KsColors.successDeep,
                           ),
                         ),
-                        Spacer(),
+                        const Spacer(),
                         Text(
                           'Shivajinagar • 2 km',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 10.5,
                             color: KsColors.secondary,
                           ),
@@ -557,15 +568,15 @@ class LandingScreen extends StatelessWidget {
                         color: KsColors.canvas,
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Row(
+                      child: Row(
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.handyman,
                             size: 28,
                             color: KsColors.primary,
                           ),
-                          SizedBox(width: 10),
-                          Expanded(
+                          const SizedBox(width: 10),
+                          const Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -586,7 +597,7 @@ class LandingScreen extends StatelessWidget {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              Text(
+                              const Text(
                                 '₹850',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w800,
@@ -595,8 +606,8 @@ class LandingScreen extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                'PER DAY DIRECT PAY',
-                                style: TextStyle(
+                                tr(lang, 'perDayDirect'),
+                                style: const TextStyle(
                                   fontSize: 9,
                                   color: KsColors.muted,
                                 ),
@@ -607,21 +618,21 @@ class LandingScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    const Row(
+                    Row(
                       children: [
-                        CircleAvatar(
+                        const CircleAvatar(
                           backgroundColor: KsColors.primaryContainer,
                           child: Text(
                             'R',
                             style: TextStyle(color: Colors.white),
                           ),
                         ),
-                        SizedBox(width: 8),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
+                              const Row(
                                 children: [
                                   Text(
                                     'Ramesh Patil',
@@ -637,8 +648,8 @@ class LandingScreen extends StatelessWidget {
                                 ],
                               ),
                               Text(
-                                'Booked 4 days this week',
-                                style: TextStyle(
+                                tr(lang, 'bookedWeek'),
+                                style: const TextStyle(
                                   fontSize: 11.5,
                                   color: KsColors.muted,
                                 ),
@@ -647,8 +658,8 @@ class LandingScreen extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '98% On-Time Pay',
-                          style: TextStyle(
+                          tr(lang, 'onTimePay'),
+                          style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
                             color: KsColors.secondary,
@@ -664,39 +675,53 @@ class LandingScreen extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: () => Navigator.pushNamed(context, '/role'),
+                onPressed: () async {
+                  await ref
+                      .read(appControllerProvider.notifier)
+                      .setRole(UserRole.worker);
+                  if (context.mounted) {
+                    Navigator.pushNamed(context, '/profile');
+                  }
+                },
                 icon: const Icon(Icons.search),
-                label: const Text('काम ढूँढें / Find Work — 1 min free'),
+                label: Text(tr(lang, 'findWork')),
               ),
             ),
             const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: () => Navigator.pushNamed(context, '/role'),
+                onPressed: () async {
+                  await ref
+                      .read(appControllerProvider.notifier)
+                      .setRole(UserRole.employer);
+                  if (context.mounted) {
+                    Navigator.pushNamed(context, '/eonboard');
+                  }
+                },
                 icon: const Icon(Icons.person_add_outlined),
-                label: const Text('काम करवाएं / Hire a Worker'),
+                label: Text(tr(lang, 'hireWorker')),
               ),
             ),
             const SizedBox(height: 12),
             for (final v in [
               (
                 Icons.phone_in_talk_outlined,
-                'Direct Calling & Chat',
-                '0% Cut',
-                'Talk straight to homeowners and contractors. No agent fees.',
+                tr(lang, 'featDirect'),
+                tr(lang, 'featDirectTag'),
+                tr(lang, 'featDirectSub'),
               ),
               (
                 Icons.verified_user_outlined,
-                'Work Promise Slip',
-                'Written Record',
-                'Digital wage slip before you start. Hours, rate and pay method locked in.',
+                tr(lang, 'featPromise'),
+                tr(lang, 'featPromiseTag'),
+                tr(lang, 'featPromiseSub'),
               ),
               (
                 Icons.badge_outlined,
-                'Digital Skill Passport',
-                'Audio Bio',
-                'Showcase work photos and voice reviews. Carry your reputation anywhere.',
+                tr(lang, 'featPassport'),
+                tr(lang, 'featPassportTag'),
+                tr(lang, 'featPassportSub'),
               ),
             ])
               Card(
@@ -729,9 +754,9 @@ class LandingScreen extends StatelessWidget {
                 ),
               ),
             const SizedBox(height: 8),
-            const Text(
-              'Available Trades in Pune',
-              style: TextStyle(
+            Text(
+              tr(lang, 'tradesTitle'),
+              style: const TextStyle(
                 fontWeight: FontWeight.w800,
                 fontSize: 15,
                 color: KsColors.primary,
@@ -744,52 +769,59 @@ class LandingScreen extends StatelessWidget {
               physics: const NeverScrollableScrollPhysics(),
               mainAxisSpacing: 8,
               crossAxisSpacing: 8,
-              children: const [
+              children: [
                 _Trade(
                   icon: Icons.bolt_outlined,
                   en: 'Electrician',
-                  hi: 'इलेक्ट्रीशियन',
+                  lang: lang,
                 ),
                 _Trade(
                   icon: Icons.plumbing_outlined,
                   en: 'Plumber',
-                  hi: 'प्लम्बर',
+                  lang: lang,
                 ),
                 _Trade(
                   icon: Icons.carpenter_outlined,
                   en: 'Carpenter',
-                  hi: 'बढ़ई',
+                  lang: lang,
                 ),
                 _Trade(
                   icon: Icons.format_paint_outlined,
                   en: 'Painter',
-                  hi: 'पेंटर',
+                  lang: lang,
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: KsColors.primaryContainer,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.support_agent, color: KsColors.secondaryContainer),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'मदद चाहिए? Kaam Sahayak Helpline (Toll-Free)',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
+            InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: () => dialHelpline(context, lang),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: KsColors.primaryContainer,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.support_agent,
+                      color: KsColors.secondaryContainer,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        tr(lang, 'helpline'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
-                  ),
-                  Icon(Icons.call, color: KsColors.secondaryContainer),
-                ],
+                    const Icon(Icons.call, color: KsColors.secondaryContainer),
+                  ],
+                ),
               ),
             ),
           ],
@@ -801,27 +833,35 @@ class LandingScreen extends StatelessWidget {
 
 class _Trade extends StatelessWidget {
   final IconData icon;
-  final String en, hi;
-  const _Trade({required this.icon, required this.en, required this.hi});
+  final String en;
+  final String lang;
+  const _Trade({required this.icon, required this.en, required this.lang});
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Column(
-        children: [
-          Icon(icon, color: KsColors.primary),
-          Text(
-            en,
-            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
-          ),
-          Text(
-            hi,
-            style: const TextStyle(fontSize: 9.5, color: KsColors.muted),
-          ),
-        ],
+  Widget build(BuildContext context) {
+    final first = tradeLabel(lang, en);
+    final second = lang == 'hi' ? en : tradeLabel('hi', en);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Column(
+          children: [
+            Icon(icon, color: KsColors.primary),
+            Text(
+              first,
+              style: const TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              second,
+              style: const TextStyle(fontSize: 9.5, color: KsColors.muted),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class RoleScreen extends ConsumerWidget {
@@ -829,12 +869,13 @@ class RoleScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final st = ref.watch(appControllerProvider);
+    final lang = st.lang;
     final ctl = ref.read(appControllerProvider.notifier);
     UserRole sel = st.role;
     return Scaffold(
       appBar: AppBar(
         leading: const BackButton(),
-        title: const Text('कदम २ / Step 2'),
+        title: Text(tr(lang, 'step2')),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(18, 6, 18, 130),
@@ -845,9 +886,9 @@ class RoleScreen extends ConsumerWidget {
               color: KsColors.amberBg,
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Text(
-              '🤝 KAAMSETU ONBOARDING',
-              style: TextStyle(
+            child: Text(
+              tr(lang, 'onboardingBadge'),
+              style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
                 color: KsColors.secondary,
@@ -855,52 +896,48 @@ class RoleScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'आप KaamSetu पर क्या करना चाहते हैं?',
-            style: TextStyle(
+          Text(
+            tr(lang, 'roleTitle'),
+            style: const TextStyle(
               fontFamily: 'Plus Jakarta Sans',
               fontWeight: FontWeight.w800,
               fontSize: 24,
               color: KsColors.primary,
             ),
           ),
-          const Text(
-            'What would you like to do?',
-            style: TextStyle(
+          Text(
+            tr(lang, 'roleSub'),
+            style: const TextStyle(
               fontWeight: FontWeight.w600,
               color: KsColors.muted,
             ),
           ),
-          const Text(
-            'Choose your role to personalize your experience. No paperwork or formal résumé required.',
-            style: TextStyle(color: KsColors.muted, fontSize: 13),
+          Text(
+            tr(lang, 'roleDesc'),
+            style: const TextStyle(color: KsColors.muted, fontSize: 13),
           ),
           const SizedBox(height: 12),
           _RoleCard(
             selected: sel == UserRole.worker,
-            badge: 'लोकप्रिय • Most Popular',
-            title: 'मुझे काम चाहिए',
-            sub: 'I Want Work',
-            desc: 'इलेक्ट्रीशियन, प्लंबर, मिस्त्री, पेंटर, बढ़ई, हेल्पर आदि',
-            points: const [
-              'दैनिक पारिश्रमिक • Daily wage opportunities',
-              'सीधे मालिक से बात • Direct employer contact',
-              'डिजिटल स्किल पासपोर्ट • Digital Skill Passport',
+            badge: tr(lang, 'wantWorkBadge'),
+            title: tr(lang, 'wantWork'),
+            sub: tr(lang == 'hi' ? 'en' : 'hi', 'wantWork'),
+            desc: tr(lang, 'wantWorkDesc'),
+            points: [
+              tr(lang, 'wantWorkP1'),
+              tr(lang, 'wantWorkP2'),
+              tr(lang, 'wantWorkP3'),
             ],
             icon: Icons.construction,
             onTap: () => ctl.setRole(UserRole.worker),
           ),
           _RoleCard(
             selected: sel == UserRole.employer,
-            badge: 'मालिक / ठेकेदार • Hirer',
-            title: 'मुझे कारीगर चाहिए',
-            sub: 'I Want to Hire',
-            desc:
-                'घर, निर्माण कार्य या प्रोजेक्ट के लिए सत्यापित कामगार ढूंढें',
-            points: const [
-              'आसपास तुरंत उपलब्धता • Instant nearby availability',
-              'कोई कमीशन नहीं • Zero brokerage, fair wages',
-            ],
+            badge: tr(lang, 'wantHireBadge'),
+            title: tr(lang, 'wantHire'),
+            sub: tr(lang == 'hi' ? 'en' : 'hi', 'wantHire'),
+            desc: tr(lang, 'wantHireDesc'),
+            points: [tr(lang, 'wantHireP1'), tr(lang, 'wantHireP2')],
             icon: Icons.groups_outlined,
             onTap: () => ctl.setRole(UserRole.employer),
           ),
@@ -910,9 +947,9 @@ class RoleScreen extends ConsumerWidget {
               color: KsColors.successBg.withOpacity(.6),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Text(
-              'कामसेतु का वादा: कोई फ़ीस नहीं, सीधा संपर्क और लिखित पारिश्रमिक रिकॉर्ड।',
-              style: TextStyle(fontSize: 12.5, color: KsColors.primary),
+            child: Text(
+              tr(lang, 'promiseShort'),
+              style: const TextStyle(fontSize: 12.5, color: KsColors.primary),
             ),
           ),
         ],
@@ -928,19 +965,14 @@ class RoleScreen extends ConsumerWidget {
                 if (sel == UserRole.worker) {
                   Navigator.pushNamed(context, '/profile');
                 } else {
-                  ctl.setOnboarded(true);
-                  Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    '/home',
-                    (_) => false,
-                  );
+                  Navigator.pushNamed(context, '/eonboard');
                 }
               },
               icon: const Icon(Icons.arrow_forward),
               label: Text(
                 sel == UserRole.worker
-                    ? 'Continue as Worker'
-                    : 'Continue as Employer',
+                    ? tr(lang, 'continueAsWorker')
+                    : tr(lang, 'continueAsEmployer'),
               ),
             ),
           ),
@@ -1092,6 +1124,8 @@ class _WorkerProfileFormScreenState
   String _area = 'Kothrud, Pune';
   double _radius = 8;
   double _pay = 800;
+  AvailabilityStatus _avail = AvailabilityStatus.available;
+  String _date = 'today';
   bool _init = false;
 
   @override
@@ -1115,49 +1149,52 @@ class _WorkerProfileFormScreenState
     _area = w.workArea;
     _radius = w.preferredRadiusKm;
     _pay = w.preferredPay;
+    _avail = w.availability;
+    _date = w.availableDate;
   }
 
   @override
   Widget build(BuildContext context) {
     final st = ref.watch(appControllerProvider);
+    final lang = st.lang;
     if (st.loading) return const Scaffold(body: LoadingView());
     _prefill(st);
     return Scaffold(
-      appBar: AppBar(title: const Text('Skill Passport बनाएँ • Step 3')),
+      appBar: AppBar(title: Text(tr(lang, 'profileTitle'))),
       body: Form(
         key: _form,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 8, 18, 130),
           children: [
-            const Text(
-              'बिना résumé के अपनी पहचान बनाएँ',
-              style: TextStyle(
+            Text(
+              tr(lang, 'profileHead'),
+              style: const TextStyle(
                 fontFamily: 'Plus Jakarta Sans',
                 fontWeight: FontWeight.w800,
                 fontSize: 22,
                 color: KsColors.primary,
               ),
             ),
-            const Text(
-              'No résumé needed — just your trade and area.',
-              style: TextStyle(color: KsColors.muted),
+            Text(
+              tr(lang, 'profileSub'),
+              style: const TextStyle(color: KsColors.muted),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _name,
-              decoration: const InputDecoration(
-                labelText: 'आपका नाम • Your name *',
-                hintText: 'e.g. Ramesh Patil',
+              decoration: InputDecoration(
+                labelText: tr(lang, 'nameLabel'),
+                hintText: tr(lang, 'nameHint'),
               ),
               validator: (v) => (v == null || v.trim().length < 2)
-                  ? 'Please enter your name'
+                  ? tr(lang, 'nameError')
                   : null,
               textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Primary trade *',
-              style: TextStyle(fontWeight: FontWeight.w800),
+            Text(
+              tr(lang, 'primaryTrade'),
+              style: const TextStyle(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 6),
             Wrap(
@@ -1166,16 +1203,16 @@ class _WorkerProfileFormScreenState
               children: [
                 for (final t in kTrades)
                   ChoiceChip(
-                    label: Text(t),
+                    label: Text(tradeLabel(lang, t)),
                     selected: _trade == t,
                     onSelected: (_) => setState(() => _trade = t),
                   ),
               ],
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Additional skills (optional)',
-              style: TextStyle(fontWeight: FontWeight.w800),
+            Text(
+              tr(lang, 'addSkills'),
+              style: const TextStyle(fontWeight: FontWeight.w800),
             ),
             Wrap(
               spacing: 8,
@@ -1183,7 +1220,7 @@ class _WorkerProfileFormScreenState
               children: [
                 for (final t in kTrades.where((e) => e != _trade))
                   FilterChip(
-                    label: Text(t),
+                    label: Text(tradeLabel(lang, t)),
                     selected: _skills.contains(t),
                     onSelected: (v) =>
                         setState(() => v ? _skills.add(t) : _skills.remove(t)),
@@ -1193,9 +1230,9 @@ class _WorkerProfileFormScreenState
             const SizedBox(height: 12),
             Row(
               children: [
-                const Text(
-                  'Experience (years) *',
-                  style: TextStyle(fontWeight: FontWeight.w800),
+                Text(
+                  tr(lang, 'expYears'),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
                 const Spacer(),
                 IconButton(
@@ -1220,7 +1257,7 @@ class _WorkerProfileFormScreenState
             const SizedBox(height: 6),
             DropdownButtonFormField<String>(
               value: kAreas.contains(_area) ? _area : kAreas.first,
-              decoration: const InputDecoration(labelText: 'Work locality *'),
+              decoration: InputDecoration(labelText: tr(lang, 'workLocality')),
               items: [
                 for (final a in kAreas)
                   DropdownMenuItem(value: a, child: Text(a)),
@@ -1229,7 +1266,7 @@ class _WorkerProfileFormScreenState
             ),
             const SizedBox(height: 12),
             Text(
-              'Preferred radius: ${_radius.toStringAsFixed(0)} km',
+              trArgs(lang, 'prefRadius', {'v': _radius.toStringAsFixed(0)}),
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
             Slider(
@@ -1241,7 +1278,7 @@ class _WorkerProfileFormScreenState
               onChanged: (v) => setState(() => _radius = v),
             ),
             Text(
-              'Expected pay: ₹${_pay.toStringAsFixed(0)}/day',
+              trArgs(lang, 'expectedPay', {'v': _pay.toStringAsFixed(0)}),
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
             Slider(
@@ -1254,18 +1291,405 @@ class _WorkerProfileFormScreenState
             ),
             Card(
               color: KsColors.successBg.withOpacity(.5),
-              child: const Padding(
-                padding: EdgeInsets.all(12),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, color: KsColors.successDeep),
-                    SizedBox(width: 8),
+                    const Icon(Icons.info_outline, color: KsColors.successDeep),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Work photos & audio intro are optional and can be added later from Skill Passport.',
-                        style: TextStyle(fontSize: 12.5),
+                        tr(lang, 'photosNote'),
+                        style: const TextStyle(fontSize: 12.5),
                       ),
                     ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              tr(lang, 'availL'),
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              children: [
+                ChoiceChip(
+                  label: Text(tr(lang, 'availableChk')),
+                  selected: _avail == AvailabilityStatus.available,
+                  onSelected: (_) =>
+                      setState(() => _avail = AvailabilityStatus.available),
+                ),
+                ChoiceChip(
+                  label: Text(tr(lang, 'pausedChk')),
+                  selected: _avail != AvailabilityStatus.available,
+                  onSelected: (_) =>
+                      setState(() => _avail = AvailabilityStatus.unavailable),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              tr(lang, 'availDateL'),
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              children: [
+                ChoiceChip(
+                  label: Text(tr(lang, 'today')),
+                  selected: _date == 'today',
+                  onSelected: (_) => setState(() => _date = 'today'),
+                ),
+                ChoiceChip(
+                  label: Text(tr(lang, 'tomorrow')),
+                  selected: _date == 'tomorrow',
+                  onSelected: (_) => setState(() => _date = 'tomorrow'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      bottomSheet: Container(
+        color: KsColors.surface.withOpacity(.97),
+        padding: const EdgeInsets.fromLTRB(18, 10, 18, 18),
+        child: SafeArea(
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(tr(lang, 'back')),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 2,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    if (!_form.currentState!.validate()) {
+                      showFeedback(
+                        context,
+                        tr(lang, 'fillRequired'),
+                        error: true,
+                      );
+                      return;
+                    }
+                    Navigator.pushNamed(
+                      context,
+                      '/preview',
+                      arguments: {
+                        'name': _name.text.trim(),
+                        'trade': _trade,
+                        'skills': _skills.toList(),
+                        'exp': _exp,
+                        'area': _area,
+                        'radius': _radius,
+                        'pay': _pay,
+                        'avail': _avail.name,
+                        'date': _date,
+                      },
+                    );
+                  },
+                  icon: const Icon(Icons.badge_outlined),
+                  label: Text(tr(lang, 'previewSave')),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Skill Passport preview — generated from the actual form data (flow step 10).
+/// Save persists the profile + display name + onboarding (step 11) and opens
+/// the Worker Dashboard (step 12).
+class PassportPreviewScreen extends ConsumerWidget {
+  const PassportPreviewScreen({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final st = ref.watch(appControllerProvider);
+    final ctl = ref.read(appControllerProvider.notifier);
+    final lang = st.lang;
+    final args =
+        (ModalRoute.of(context)?.settings.arguments as Map?) ?? const {};
+    final name = (args['name'] as String?) ?? '';
+    final base = st.currentWorker;
+    final draft = base.copyWith(
+      primaryTrade: (args['trade'] as String?) ?? base.primaryTrade,
+      additionalSkills:
+          ((args['skills'] as List?)?.map((e) => '$e').toList()) ??
+          base.additionalSkills,
+      experienceYears: (args['exp'] as int?) ?? base.experienceYears,
+      workArea: (args['area'] as String?) ?? base.workArea,
+      preferredRadiusKm:
+          ((args['radius'] as num?)?.toDouble()) ?? base.preferredRadiusKm,
+      preferredPay: ((args['pay'] as num?)?.toDouble()) ?? base.preferredPay,
+      availability:
+          enumFromCode(AvailabilityStatus.values, args['avail'] as String?) ??
+          base.availability,
+      availableDate: (args['date'] as String?) ?? base.availableDate,
+    );
+    final displayName = name.isNotEmpty ? name : st.currentWorkerUser.name;
+    return Scaffold(
+      appBar: AppBar(title: Text(tr(lang, 'previewTitle'))),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(18, 10, 18, 130),
+        children: [
+          Card(
+            color: KsColors.primary,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    displayName.isEmpty ? '—' : displayName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 20,
+                    ),
+                  ),
+                  Text(
+                    '${tradeLabel(lang, draft.primaryTrade)} • ${trArgs(lang, 'yrsExp', {'n': '${draft.experienceYears}'})}',
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                  Text(
+                    '${draft.workArea} • ${trArgs(lang, 'radiusL', {'v': draft.preferredRadiusKm.toStringAsFixed(0)})}',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                  Text(
+                    '${trArgs(lang, 'expectedPay', {'v': draft.preferredPay.toStringAsFixed(0)})} • ${codeLabel(lang, draft.availability.name)}',
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final s in [
+                        draft.primaryTrade,
+                        ...draft.additionalSkills,
+                      ])
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Text(
+                            tradeLabel(lang, s),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+      bottomSheet: Container(
+        color: KsColors.surface.withOpacity(.97),
+        padding: const EdgeInsets.fromLTRB(18, 10, 18, 18),
+        child: SafeArea(
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(tr(lang, 'back')),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 2,
+                child: FilledButton.icon(
+                  onPressed: () async {
+                    await ctl.upsertWorkerProfile(draft);
+                    if (name.isNotEmpty) {
+                      await ctl.renameCurrentWorker(name);
+                    }
+                    await ctl.setOnboarded(true);
+                    if (!context.mounted) return;
+                    showFeedback(context, tr(lang, 'passportSaved'));
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      '/home',
+                      (_) => false,
+                    );
+                  },
+                  icon: const Icon(Icons.check_circle_outline),
+                  label: Text(tr(lang, 'saveProfile')),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Employer onboarding: name → type → business → locality → contact →
+/// review → save → Employer Dashboard. No OTP in demo.
+class EmployerOnboardingScreen extends ConsumerStatefulWidget {
+  const EmployerOnboardingScreen({super.key});
+  @override
+  ConsumerState<EmployerOnboardingScreen> createState() =>
+      _EmployerOnboardingScreenState();
+}
+
+class _EmployerOnboardingScreenState
+    extends ConsumerState<EmployerOnboardingScreen> {
+  final _form = GlobalKey<FormState>();
+  late TextEditingController _name;
+  late TextEditingController _biz;
+  late TextEditingController _contact;
+  String _type = 'Homeowner';
+  String _area = 'Kothrud, Pune';
+  bool _init = false;
+
+  static const _types = ['Homeowner', 'Contractor', 'Business', 'Individual'];
+
+  String _typeLabel(String lang, String t) => switch (t) {
+    'Homeowner' => tr(lang, 'typeHomeowner'),
+    'Contractor' => tr(lang, 'typeContractor'),
+    'Business' => tr(lang, 'typeBusiness'),
+    _ => tr(lang, 'typeIndividual'),
+  };
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _biz.dispose();
+    _contact.dispose();
+    super.dispose();
+  }
+
+  void _prefill(AppState st) {
+    if (_init) return;
+    _init = true;
+    final e = st.currentEmployer;
+    _name = TextEditingController(
+      text: st.currentEmployerUser.name == 'Meera Shah'
+          ? ''
+          : st.currentEmployerUser.name,
+    );
+    _biz = TextEditingController(text: e.businessName);
+    _contact = TextEditingController(text: e.contact);
+    if (_types.contains(e.employerType)) _type = e.employerType;
+    if (kAreas.contains(e.workArea)) _area = e.workArea;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final st = ref.watch(appControllerProvider);
+    final lang = st.lang;
+    if (st.loading) return const Scaffold(body: LoadingView());
+    _prefill(st);
+    return Scaffold(
+      appBar: AppBar(title: Text(tr(lang, 'eOnboardTitle'))),
+      body: Form(
+        key: _form,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(18, 8, 18, 130),
+          children: [
+            Text(
+              tr(lang, 'eOnboardHead'),
+              style: const TextStyle(
+                fontFamily: 'Plus Jakarta Sans',
+                fontWeight: FontWeight.w800,
+                fontSize: 22,
+                color: KsColors.primary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _name,
+              decoration: InputDecoration(labelText: tr(lang, 'eNameL')),
+              validator: (v) => (v == null || v.trim().length < 2)
+                  ? tr(lang, 'nameError')
+                  : null,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _type,
+              decoration: InputDecoration(labelText: tr(lang, 'eTypeL')),
+              items: [
+                for (final t in _types)
+                  DropdownMenuItem(value: t, child: Text(_typeLabel(lang, t))),
+              ],
+              onChanged: (v) => setState(() => _type = v ?? _type),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _biz,
+              decoration: InputDecoration(labelText: tr(lang, 'eBizL')),
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: kAreas.contains(_area) ? _area : kAreas.first,
+              decoration: InputDecoration(labelText: tr(lang, 'workLocality')),
+              items: [
+                for (final a in kAreas)
+                  DropdownMenuItem(value: a, child: Text(a)),
+              ],
+              onChanged: (v) => setState(() => _area = v ?? _area),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _contact,
+              decoration: InputDecoration(labelText: tr(lang, 'eContactL')),
+              keyboardType: TextInputType.phone,
+            ),
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tr(lang, 'eReview'),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${_typeLabel(lang, _type)} • $_area',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    if (_biz.text.trim().isNotEmpty)
+                      Text(
+                        _biz.text.trim(),
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: KsColors.muted,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -1282,7 +1706,7 @@ class _WorkerProfileFormScreenState
               Expanded(
                 child: OutlinedButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Back'),
+                  child: Text(tr(lang, 'back')),
                 ),
               ),
               const SizedBox(width: 10),
@@ -1293,38 +1717,37 @@ class _WorkerProfileFormScreenState
                     if (!_form.currentState!.validate()) {
                       showFeedback(
                         context,
-                        'Please fill required fields',
+                        tr(lang, 'fillRequired'),
                         error: true,
                       );
                       return;
                     }
                     final ctl = ref.read(appControllerProvider.notifier);
-                    final w = st.currentWorker;
-                    await ctl.upsertWorkerProfile(
-                      w.copyWith(
-                        primaryTrade: _trade,
-                        additionalSkills: _skills.toList(),
-                        experienceYears: _exp,
+                    final e = st.currentEmployer;
+                    await ctl.upsertEmployerProfile(
+                      EmployerProfile(
+                        id: e.id,
+                        userId: e.userId,
+                        employerType: _type,
+                        businessName: _biz.text.trim(),
                         workArea: _area,
-                        preferredRadiusKm: _radius,
-                        preferredPay: _pay,
+                        contact: _contact.text.trim(),
                       ),
                     );
-                    // update display name
                     if (_name.text.trim().isNotEmpty) {
-                      await ctl.renameCurrentWorker(_name.text.trim());
+                      await ctl.renameCurrentEmployer(_name.text.trim());
                     }
                     await ctl.setOnboarded(true);
                     if (!context.mounted) return;
-                    showFeedback(context, 'Skill Passport saved ✓');
+                    showFeedback(context, tr(lang, 'eSaved'));
                     Navigator.pushNamedAndRemoveUntil(
                       context,
                       '/home',
                       (_) => false,
                     );
                   },
-                  icon: const Icon(Icons.badge_outlined),
-                  label: const Text('Preview & Save Passport'),
+                  icon: const Icon(Icons.store_outlined),
+                  label: Text(tr(lang, 'eReview')),
                 ),
               ),
             ],

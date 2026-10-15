@@ -1,30 +1,81 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
+import '../core/i18n/strings.dart';
 import '../core/widgets/common.dart';
 import '../data/models/enums.dart';
 import '../state/app_state.dart';
 import 'theme.dart';
+import 'splash.dart';
 import '../features/onboarding/onboarding.dart';
 import '../features/worker/worker_home.dart';
 import '../features/worker/worker_more.dart';
 import '../features/employer/employer.dart';
 import '../features/agreements/agreement.dart';
 
-class KaamSetuApp extends StatelessWidget {
-  const KaamSetuApp({super.key});
+/// Demo-role navigation guard (§21): worker screens never run employer
+/// actions and vice versa. Offers a one-tap identity switch instead.
+class RoleGuard extends ConsumerWidget {
+  final UserRole role;
+  final Widget child;
+  const RoleGuard({super.key, required this.role, required this.child});
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final st = ref.watch(appControllerProvider);
+    if (st.role == role) return child;
+    final wantWorker = role == UserRole.worker;
+    return Scaffold(
+      appBar: AppBar(),
+      body: EmptyView(
+        icon: Icons.lock_outline,
+        title: tr(st.lang, 'wrongRole'),
+        subtitle: tr(st.lang, wantWorker ? 'roleWorker' : 'roleEmployer'),
+        actionLabel: tr(
+          st.lang,
+          wantWorker ? 'switchToWorker' : 'switchToEmployer',
+        ),
+        onAction: () async {
+          final ctl = ref.read(appControllerProvider.notifier);
+          if (wantWorker) {
+            await ctl.switchWorker(st.currentWorkerId);
+          } else {
+            await ctl.switchEmployer(st.currentEmployerId);
+          }
+          if (context.mounted) {
+            Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+          }
+        },
+      ),
+    );
+  }
+}
+
+class RozgariApp extends ConsumerWidget {
+  const RozgariApp({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Offline language: whole app rebuilds in EN or HI on switch.
+    final lang = ref.watch(appControllerProvider.select((s) => s.lang));
     return MaterialApp(
-      title: 'KaamSetu',
+      title: tr(lang, 'appName'),
       debugShowCheckedModeBanner: false,
-      theme: kaamSetuTheme(),
+      theme: rozgariTheme(),
+      locale: Locale(lang),
+      supportedLocales: const [Locale('en'), Locale('hi'), Locale('mr')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       initialRoute: '/',
       onGenerateRoute: (s) {
+        final notFoundTitle = tr(lang, 'routeNotFound');
+        final homeLabel = tr(lang, 'homeBtn');
         Widget page;
         switch (s.name) {
           case '/':
-            page = const RootGate();
+            page = const SplashScreen();
             break;
           case '/language':
             page = const LanguageScreen();
@@ -36,31 +87,64 @@ class KaamSetuApp extends StatelessWidget {
             page = const RoleScreen();
             break;
           case '/profile':
-            page = const WorkerProfileFormScreen();
+            page = const RoleGuard(
+              role: UserRole.worker,
+              child: WorkerProfileFormScreen(),
+            );
+            break;
+          case '/preview':
+            page = const RoleGuard(
+              role: UserRole.worker,
+              child: PassportPreviewScreen(),
+            );
+            break;
+          case '/eonboard':
+            page = const RoleGuard(
+              role: UserRole.employer,
+              child: EmployerOnboardingScreen(),
+            );
             break;
           case '/home':
             page = const HomeShell();
             break;
           case '/job':
-            page = JobDetailScreen(jobId: s.arguments as String);
+            page = RoleGuard(
+              role: UserRole.worker,
+              child: JobDetailScreen(jobId: s.arguments as String),
+            );
             break;
           case '/myjobs':
-            page = const MyJobsScreen();
+            page = const RoleGuard(
+              role: UserRole.worker,
+              child: MyJobsScreen(),
+            );
             break;
           case '/passport':
-            page = const PassportScreen();
+            page = const RoleGuard(
+              role: UserRole.worker,
+              child: PassportScreen(),
+            );
             break;
           case '/voice':
-            page = const VoiceScreen();
+            page = const RoleGuard(role: UserRole.worker, child: VoiceScreen());
             break;
           case '/safety':
-            page = const SafetyScreen();
+            page = const RoleGuard(
+              role: UserRole.worker,
+              child: SafetyScreen(),
+            );
             break;
           case '/report':
-            page = ReportScreen(jobId: s.arguments as String);
+            page = RoleGuard(
+              role: UserRole.worker,
+              child: ReportScreen(jobId: s.arguments as String),
+            );
             break;
           case '/welfare':
-            page = const WelfareScreen();
+            page = const RoleGuard(
+              role: UserRole.worker,
+              child: WelfareScreen(),
+            );
             break;
           case '/notifications':
             page = const NotificationsScreen();
@@ -69,28 +153,49 @@ class KaamSetuApp extends StatelessWidget {
             page = AgreementScreen(agreementId: (s.arguments as String?) ?? '');
             break;
           case '/post':
-            page = const PostJobScreen();
+            page = RoleGuard(
+              role: UserRole.employer,
+              child: PostJobScreen(jobId: s.arguments as String?),
+            );
             break;
           case '/eapplications':
-            page = EmployerApplicationsScreen(jobId: s.arguments as String);
+            page = RoleGuard(
+              role: UserRole.employer,
+              child: EmployerApplicationsScreen(jobId: s.arguments as String),
+            );
             break;
           case '/echowk':
-            page = const EmployerChowkScreen();
+            page = const RoleGuard(
+              role: UserRole.employer,
+              child: EmployerChowkScreen(),
+            );
             break;
           case '/epassport':
-            page = EmployerPassportScreen(workerId: s.arguments as String);
+            page = RoleGuard(
+              role: UserRole.employer,
+              child: EmployerPassportScreen(workerId: s.arguments as String),
+            );
+            break;
+          case '/eprofile':
+            page = const RoleGuard(
+              role: UserRole.employer,
+              child: EmployerProfileScreen(),
+            );
             break;
           case '/eagreements':
-            page = const EmployerAgreementsScreen();
+            page = const RoleGuard(
+              role: UserRole.employer,
+              child: EmployerAgreementsScreen(),
+            );
             break;
           default:
             page = Scaffold(
               appBar: AppBar(),
               body: EmptyView(
                 icon: Icons.error_outline,
-                title: 'Route not found',
+                title: notFoundTitle,
                 subtitle: '${s.name}',
-                actionLabel: 'Home',
+                actionLabel: homeLabel,
                 onAction: () => Navigator.pushNamedAndRemoveUntil(
                   context,
                   '/home',
@@ -105,18 +210,6 @@ class KaamSetuApp extends StatelessWidget {
   }
 }
 
-class RootGate extends ConsumerWidget {
-  const RootGate({super.key});
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final st = ref.watch(appControllerProvider);
-    if (st.loading)
-      return const Scaffold(body: LoadingView(label: 'Loading KaamSetu demo…'));
-    if (!st.onboarded) return const LanguageScreen();
-    return const HomeShell();
-  }
-}
-
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
   @override
@@ -128,6 +221,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   Widget build(BuildContext context) {
     final st = ref.watch(appControllerProvider);
     final ctl = ref.read(appControllerProvider.notifier);
+    final lang = st.lang;
     final isWorker = st.role == UserRole.worker;
     return DefaultTabController(
       length: isWorker ? 3 : 3,
@@ -149,53 +243,78 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                 ),
               ),
               const SizedBox(width: 8),
-              const Column(
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'कामसेतू • KaamSetu',
-                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                    tr(lang, 'appName'),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                    ),
                   ),
                   Text(
-                    'Beyond the Waiting Line',
-                    style: TextStyle(fontSize: 9.5, color: KsColors.muted),
+                    tr(lang, 'tagline'),
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      color: KsColors.muted,
+                    ),
                   ),
                 ],
               ),
             ],
           ),
           actions: [
-            // language switcher
+            // language switcher — EN/HI only, offline, whole-app switch
             PopupMenuButton<String>(
-              tooltip: 'Language',
+              tooltip: tr(lang, 'language'),
               icon: const Icon(Icons.translate_outlined),
               onSelected: (v) {
                 ctl.setLang(v);
-                showFeedback(context, 'Language: $v');
+                if (context.mounted) {
+                  showFeedback(context, trArgs(lang, 'langChanged', {'v': v}));
+                }
               },
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'hi', child: Text('हिंदी')),
-                PopupMenuItem(value: 'mr', child: Text('मराठी')),
-                PopupMenuItem(value: 'en', child: Text('English')),
+              itemBuilder: (_) => [
+                PopupMenuItem(value: 'hi', child: Text(tr(lang, 'hindi'))),
+                PopupMenuItem(value: 'en', child: Text(tr(lang, 'english'))),
               ],
             ),
             IconButton(
-              tooltip: 'Demo controls',
+              tooltip: tr(lang, 'demoControls'),
               icon: const Icon(Icons.science_outlined),
               onPressed: () => _demoSheet(context, ref),
             ),
           ],
           bottom: TabBar(
             tabs: isWorker
-                ? const [
-                    Tab(icon: Icon(Icons.home_outlined), text: 'Home'),
-                    Tab(icon: Icon(Icons.search), text: 'Jobs'),
-                    Tab(icon: Icon(Icons.groups_outlined), text: 'Chowk'),
+                ? [
+                    Tab(
+                      icon: const Icon(Icons.home_outlined),
+                      text: tr(lang, 'home'),
+                    ),
+                    Tab(
+                      icon: const Icon(Icons.search),
+                      text: tr(lang, 'jobsTab'),
+                    ),
+                    Tab(
+                      icon: const Icon(Icons.groups_outlined),
+                      text: tr(lang, 'chowkTab'),
+                    ),
                   ]
-                : const [
-                    Tab(icon: Icon(Icons.dashboard_outlined), text: 'Home'),
-                    Tab(icon: Icon(Icons.groups_outlined), text: 'Chowk'),
-                    Tab(icon: Icon(Icons.receipt_long_outlined), text: 'Work'),
+                : [
+                    Tab(
+                      icon: const Icon(Icons.dashboard_outlined),
+                      text: tr(lang, 'home'),
+                    ),
+                    Tab(
+                      icon: const Icon(Icons.groups_outlined),
+                      text: tr(lang, 'chowkTab'),
+                    ),
+                    Tab(
+                      icon: const Icon(Icons.receipt_long_outlined),
+                      text: tr(lang, 'workTab'),
+                    ),
                   ],
           ),
         ),
@@ -216,15 +335,15 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                   ),
                   subtitle: Text(
                     isWorker
-                        ? 'Worker • ${st.currentWorker.primaryTrade}'
-                        : 'Employer • ${st.currentEmployer.businessName.isEmpty ? st.currentEmployerUser.name : st.currentEmployer.businessName}',
+                        ? '${tr(lang, 'worker')} • ${st.currentWorker.primaryTrade}'
+                        : '${tr(lang, 'employer')} • ${st.currentEmployer.businessName.isEmpty ? st.currentEmployerUser.name : st.currentEmployer.businessName}',
                   ),
                 ),
                 const Divider(),
                 if (isWorker) ...[
                   ListTile(
                     leading: const Icon(Icons.badge_outlined),
-                    title: const Text('Skill Passport'),
+                    title: Text(tr(lang, 'passport')),
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.pushNamed(context, '/passport');
@@ -232,7 +351,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                   ),
                   ListTile(
                     leading: const Icon(Icons.work_history_outlined),
-                    title: const Text('My Jobs'),
+                    title: Text(tr(lang, 'myJobs')),
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.pushNamed(context, '/myjobs');
@@ -240,7 +359,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                   ),
                   ListTile(
                     leading: const Icon(Icons.mic_none),
-                    title: const Text('Kaam Bolo (voice)'),
+                    title: Text(tr(lang, 'voiceFull')),
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.pushNamed(context, '/voice');
@@ -248,7 +367,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                   ),
                   ListTile(
                     leading: const Icon(Icons.shield_outlined),
-                    title: const Text('Kaam Suraksha'),
+                    title: Text(tr(lang, 'safety')),
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.pushNamed(context, '/safety');
@@ -256,7 +375,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                   ),
                   ListTile(
                     leading: const Icon(Icons.account_balance_outlined),
-                    title: const Text('Welfare Hub'),
+                    title: Text(tr(lang, 'welfare')),
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.pushNamed(context, '/welfare');
@@ -265,15 +384,23 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                 ] else ...[
                   ListTile(
                     leading: const Icon(Icons.add),
-                    title: const Text('Post a job'),
+                    title: Text(tr(lang, 'postAJob')),
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.pushNamed(context, '/post');
                     },
                   ),
                   ListTile(
+                    leading: const Icon(Icons.store_outlined),
+                    title: Text(tr(lang, 'eProfileTitle')),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.pushNamed(context, '/eprofile');
+                    },
+                  ),
+                  ListTile(
                     leading: const Icon(Icons.receipt_long_outlined),
-                    title: const Text('Agreements & payments'),
+                    title: Text(tr(lang, 'agreementsPayments')),
                     onTap: () {
                       Navigator.pop(context);
                       Navigator.pushNamed(context, '/eagreements');
@@ -283,7 +410,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                 ListTile(
                   leading: const Icon(Icons.notifications_outlined),
                   title: Text(
-                    'Notifications (${st.unreadFor(isWorker ? st.currentWorkerId : st.currentEmployerId)})',
+                    '${tr(lang, 'notifications')} (${st.unreadFor(isWorker ? st.currentWorkerId : st.currentEmployerId)})',
                   ),
                   onTap: () {
                     Navigator.pop(context);
@@ -293,55 +420,52 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                 const Divider(),
                 ListTile(
                   leading: const Icon(Icons.refresh_outlined),
-                  title: const Text('Reset demo data'),
-                  subtitle: const Text('Restores Ramesh • Meera • 28 jobs'),
+                  title: Text(tr(lang, 'resetDemo')),
+                  subtitle: Text(tr(lang, 'resetDemoSub1')),
                   onTap: () async {
                     await ctl.resetDemo();
                     if (context.mounted) {
                       Navigator.pop(context);
-                      showFeedback(context, 'Demo restored ✓');
+                      showFeedback(context, tr(lang, 'demoRestored'));
                     }
                   },
                 ),
                 ListTile(
                   leading: const Icon(Icons.restart_alt_outlined),
-                  title: const Text('Restart onboarding'),
+                  title: Text(tr(lang, 'restartOnboarding')),
                   onTap: () async {
                     await ctl.setOnboarded(false);
-                    if (context.mounted)
+                    if (context.mounted) {
                       Navigator.pushNamedAndRemoveUntil(
                         context,
                         '/',
                         (_) => false,
                       );
+                    }
                   },
                 ),
-                const Padding(
-                  padding: EdgeInsets.all(12),
+                Padding(
+                  padding: const EdgeInsets.all(12),
                   child: Text(
-                    'All identities, jobs, agreements & payments are simulated and stay on this device.',
-                    style: TextStyle(fontSize: 11.5, color: KsColors.muted),
+                    tr(lang, 'simNote'),
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: KsColors.muted,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
         ),
-        body: Column(
-          children: [
-            const DemoBanner(),
-            Expanded(
-              child: TabBarView(
-                children: isWorker
-                    ? const [WorkerDashboard(), JobsTab(), ChowkTab()]
-                    : const [
-                        EmployerDashboard(),
-                        EmployerChowkScreen(),
-                        EmployerAgreementsScreen(),
-                      ],
-              ),
-            ),
-          ],
+        body: TabBarView(
+          children: isWorker
+              ? const [WorkerDashboard(), JobsTab(), ChowkTab()]
+              : const [
+                  EmployerDashboard(),
+                  EmployerChowkScreen(),
+                  EmployerAgreementsScreen(),
+                ],
         ),
       ),
     );
@@ -350,6 +474,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   void _demoSheet(BuildContext context, WidgetRef ref) {
     final st = ref.read(appControllerProvider);
     final ctl = ref.read(appControllerProvider.notifier);
+    final lang = st.lang;
     showModalBottomSheet(
       context: context,
       builder: (ctx) => SafeArea(
@@ -359,26 +484,24 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Demo Mode — judge controls',
-                style: TextStyle(
+              Text(
+                tr(lang, 'demoControls'),
+                style: const TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 16,
                   color: KsColors.primary,
                 ),
               ),
-              const Text(
-                'Same central state — actions persist across role switch & restart.',
-                style: TextStyle(fontSize: 12, color: KsColors.muted),
+              Text(
+                tr(lang, 'demoControlsSub'),
+                style: const TextStyle(fontSize: 12, color: KsColors.muted),
               ),
               const SizedBox(height: 8),
               ListTile(
                 leading: const Icon(Icons.construction),
-                title: const Text(
-                  'Switch to Worker: Ramesh Patil — Electrician',
-                ),
+                title: Text(tr(lang, 'switchWorker')),
                 subtitle: Text(
-                  st.currentWorkerId == 'w01' ? 'active' : '',
+                  st.currentWorkerId == 'w01' ? tr(lang, 'active') : '',
                   style: const TextStyle(color: KsColors.successDeep),
                 ),
                 onTap: () async {
@@ -388,9 +511,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
               ),
               ListTile(
                 leading: const Icon(Icons.store_outlined),
-                title: const Text('Switch to Employer: Meera Shah'),
+                title: Text(tr(lang, 'switchEmployer')),
                 subtitle: Text(
-                  st.currentEmployerId == 'e01' ? 'active' : '',
+                  st.currentEmployerId == 'e01' ? tr(lang, 'active') : '',
                   style: const TextStyle(color: KsColors.successDeep),
                 ),
                 onTap: () async {
@@ -401,7 +524,11 @@ class _HomeShellState extends ConsumerState<HomeShell> {
               ),
               ListTile(
                 leading: const Icon(Icons.swap_horiz_outlined),
-                title: Text('Current role: ${st.role.name} — tap to toggle'),
+                title: Text(
+                  trArgs(lang, 'currentRole', {
+                    'r': codeLabel(lang, st.role.name),
+                  }),
+                ),
                 onTap: () async {
                   await ctl.setRole(
                     st.role == UserRole.worker
@@ -413,15 +540,13 @@ class _HomeShellState extends ConsumerState<HomeShell> {
               ),
               ListTile(
                 leading: const Icon(Icons.refresh_outlined),
-                title: const Text('Reset demo data'),
-                subtitle: const Text(
-                  'Restores 15 workers • 5 employers • 28 jobs',
-                ),
+                title: Text(tr(lang, 'resetDemo')),
+                subtitle: Text(tr(lang, 'resetDemoSub2')),
                 onTap: () async {
                   await ctl.resetDemo();
                   if (context.mounted) {
                     Navigator.pop(context);
-                    showFeedback(context, 'Demo restored ✓');
+                    showFeedback(context, tr(lang, 'demoRestored'));
                   }
                 },
               ),

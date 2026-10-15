@@ -170,7 +170,7 @@ DemoBundle buildDemoData() {
       userId: 'w01',
       primaryTrade: 'Electrician',
       additionalSkills: ['Helper'],
-      experienceYears: 8,
+      experienceYears: 7,
       workArea: 'Kothrud, Pune',
       preferredRadiusKm: 8,
       preferredPay: 800,
@@ -337,7 +337,7 @@ DemoBundle buildDemoData() {
     const EmployerProfile(
       id: 'e01',
       userId: 'e01',
-      employerType: 'Individual',
+      employerType: 'Homeowner',
       businessName: 'Meera Shah (Home)',
       workArea: 'Kothrud, Pune',
       contact: '98XXXXXX21',

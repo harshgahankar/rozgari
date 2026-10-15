@@ -3,21 +3,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme.dart';
 import '../../core/constants/meta.dart';
+import '../../core/i18n/strings.dart';
 import '../../core/utils/matching.dart';
 import '../../core/utils/safety_rules.dart';
 import '../../core/widgets/common.dart';
 import '../../data/models/enums.dart';
 import '../../data/models/models.dart';
 import '../../state/app_state.dart';
+import 'job_map.dart';
 
-String employerName(AppState st, Job j) {
+String employerName(AppState st, Job j, [String lang = 'en']) {
   try {
     final e = st.employers.firstWhere((e) => e.id == j.employerId);
     return e.businessName.isNotEmpty
         ? e.businessName
         : st.users.firstWhere((u) => u.id == e.userId).name;
   } catch (_) {
-    return 'Verified employer';
+    return tr(lang, 'verifiedEmployer');
   }
 }
 
@@ -27,6 +29,7 @@ class WorkerDashboard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final st = ref.watch(appControllerProvider);
     final ctl = ref.read(appControllerProvider.notifier);
+    final lang = st.lang;
     final w = st.currentWorker;
     final matched = matchJobsForWorker(w, st.jobs).take(4).toList();
     final myApps = st.applications.where((a) => a.workerId == w.id).toList();
@@ -56,7 +59,7 @@ class WorkerDashboard extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'नमस्ते, ${st.currentWorkerUser.name} 🙏',
+                    trArgs(lang, 'hello', {'name': st.currentWorkerUser.name}),
                     style: const TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 17,
@@ -64,7 +67,7 @@ class WorkerDashboard extends ConsumerWidget {
                     ),
                   ),
                   Text(
-                    '${w.primaryTrade} • ${w.workArea}',
+                    '${tradeLabel(lang, w.primaryTrade)} • ${w.workArea}',
                     style: const TextStyle(fontSize: 12, color: KsColors.muted),
                   ),
                 ],
@@ -73,7 +76,7 @@ class WorkerDashboard extends ConsumerWidget {
             Stack(
               children: [
                 IconButton(
-                  tooltip: 'Notifications',
+                  tooltip: tr(lang, 'notifications'),
                   onPressed: () =>
                       Navigator.pushNamed(context, '/notifications'),
                   icon: const Icon(Icons.notifications_outlined),
@@ -108,12 +111,12 @@ class WorkerDashboard extends ConsumerWidget {
               children: [
                 Row(
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'आज उपलब्धता • Availability',
+                            tr(lang, 'availabilityTitle'),
                             style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
@@ -121,7 +124,7 @@ class WorkerDashboard extends ConsumerWidget {
                             ),
                           ),
                           Text(
-                            'Employers nearby find you faster',
+                            tr(lang, 'availabilitySub'),
                             style: TextStyle(
                               color: KsColors.primaryFixedDim,
                               fontSize: 12,
@@ -141,7 +144,9 @@ class WorkerDashboard extends ConsumerWidget {
                         );
                         showFeedback(
                           context,
-                          v ? 'You are now discoverable ✓' : 'Availability paused — existing jobs unaffected',
+                          v
+                              ? tr(lang, 'discoverableOn')
+                              : tr(lang, 'pausedMsg'),
                         );
                       },
                     ),
@@ -152,8 +157,8 @@ class WorkerDashboard extends ConsumerWidget {
                   children: [
                     StatusChip(
                       w.availability == AvailabilityStatus.available
-                          ? 'AVAILABLE • उपलब्ध'
-                          : 'PAUSED',
+                          ? tr(lang, 'availableTag')
+                          : tr(lang, 'pausedTag'),
                       bg: w.availability == AvailabilityStatus.available
                           ? KsColors.successBg
                           : KsColors.amberBg,
@@ -188,13 +193,13 @@ class WorkerDashboard extends ConsumerWidget {
               borderRadius: BorderRadius.circular(24),
               border: Border.all(color: KsColors.surfaceHigh),
             ),
-            child: const Row(
+            child: Row(
               children: [
                 Icon(Icons.mic, color: KsColors.secondary),
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'बोलकर काम खोजें • "Kal Pune me electrician…"',
+                    tr(lang, 'voiceHint'),
                     style: TextStyle(color: KsColors.muted, fontSize: 13),
                   ),
                 ),
@@ -209,18 +214,21 @@ class WorkerDashboard extends ConsumerWidget {
           children: [
             _Stat(
               value: '₹${(w.completedJobs * 750).toString()}',
-              label: 'Est. earnings',
+              label: tr(lang, 'estEarnings'),
             ),
-            _Stat(value: '${w.completedJobs}', label: 'Jobs done'),
-            _Stat(value: '${myApps.length}', label: 'Applications'),
-            _Stat(value: '$offers', label: 'Offers'),
+            _Stat(value: '${w.completedJobs}', label: tr(lang, 'jobsDone')),
+            _Stat(
+              value: '${myApps.length}',
+              label: tr(lang, 'applicationsLbl'),
+            ),
+            _Stat(value: '$offers', label: tr(lang, 'offersLbl')),
           ],
         ),
         const SizedBox(height: 10),
         Row(
           children: [
-            const Text(
-              'Nearby jobs for you',
+            Text(
+              tr(lang, 'nearbyJobs'),
               style: TextStyle(
                 fontWeight: FontWeight.w800,
                 fontSize: 16,
@@ -230,23 +238,23 @@ class WorkerDashboard extends ConsumerWidget {
             const Spacer(),
             TextButton(
               onPressed: () => DefaultTabController.of(context).animateTo(1),
-              child: const Text('See all'),
+              child: Text(tr(lang, 'seeAll')),
             ),
           ],
         ),
         if (matched.isEmpty)
-          const EmptyView(
+          EmptyView(
             icon: Icons.work_off_outlined,
-            title: 'No matching jobs yet',
-            subtitle:
-                'Try widening your radius or changing trade in Skill Passport.',
-            actionLabel: 'Edit passport',
+            title: tr(lang, 'noMatch'),
+            subtitle: tr(lang, 'noMatchSub'),
+            actionLabel: tr(lang, 'editPassport'),
           )
         else
           for (final j in matched)
             JobCard(
               job: j,
-              employerName: employerName(st, j),
+              lang: lang,
+              employerName: employerName(st, j, lang),
               distanceLabel:
                   '${areaDistanceKm(w.workArea, j.location).toStringAsFixed(1)} km',
               saved: st.savedJobIds.contains(j.id),
@@ -263,12 +271,12 @@ class WorkerDashboard extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
                   children: [
                     Icon(Icons.badge_outlined, color: KsColors.primary),
                     SizedBox(width: 6),
                     Text(
-                      'Skill Passport snapshot',
+                      tr(lang, 'passportSnapshot'),
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
                         color: KsColors.primary,
@@ -278,11 +286,16 @@ class WorkerDashboard extends ConsumerWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '${w.primaryTrade} • ${w.experienceYears} yrs • ${w.completedJobs} jobs',
+                  '${tradeLabel(lang, w.primaryTrade)} • ${trArgs(lang, 'yrsExp', {'n': '${w.experienceYears}'})} • ${trArgs(lang, 'jobsCount', {'n': '${w.completedJobs}'})}',
                   style: const TextStyle(fontSize: 13),
                 ),
                 Text(
-                  'Skills: ${[w.primaryTrade, ...w.additionalSkills].join(', ')}',
+                  trArgs(lang, 'skillsList', {
+                    'v': [
+                      w.primaryTrade,
+                      ...w.additionalSkills,
+                    ].map((t) => tradeLabel(lang, t)).join(', '),
+                  }),
                   style: const TextStyle(fontSize: 12, color: KsColors.muted),
                 ),
                 const SizedBox(height: 8),
@@ -291,7 +304,7 @@ class WorkerDashboard extends ConsumerWidget {
                   child: OutlinedButton.icon(
                     onPressed: () => Navigator.pushNamed(context, '/passport'),
                     icon: const Icon(Icons.visibility_outlined),
-                    label: const Text('Open Skill Passport'),
+                    label: Text(tr(lang, 'openPassport')),
                   ),
                 ),
               ],
@@ -304,7 +317,7 @@ class WorkerDashboard extends ConsumerWidget {
               child: OutlinedButton.icon(
                 onPressed: () => Navigator.pushNamed(context, '/safety'),
                 icon: const Icon(Icons.shield_outlined),
-                label: const Text('Suraksha'),
+                label: Text(tr(lang, 'suraksha')),
               ),
             ),
             const SizedBox(width: 8),
@@ -312,7 +325,7 @@ class WorkerDashboard extends ConsumerWidget {
               child: OutlinedButton.icon(
                 onPressed: () => Navigator.pushNamed(context, '/welfare'),
                 icon: const Icon(Icons.account_balance_outlined),
-                label: const Text('Welfare'),
+                label: Text(tr(lang, 'welfareBtn')),
               ),
             ),
           ],
@@ -323,7 +336,7 @@ class WorkerDashboard extends ConsumerWidget {
             color: KsColors.successBg.withOpacity(.6),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: const Row(
+          child: Row(
             children: [
               Icon(
                 Icons.verified_user_outlined,
@@ -333,7 +346,7 @@ class WorkerDashboard extends ConsumerWidget {
               SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Work Promise Slip locked before every job — hours, wage & pay method in writing.',
+                  tr(lang, 'promiseLocked'),
                   style: TextStyle(fontSize: 12),
                 ),
               ),
@@ -384,13 +397,19 @@ class _JobsTabState extends ConsumerState<JobsTab> {
   String trade = 'All';
   String city = 'All';
   String sort = 'Relevance';
+  String dateF = 'Any';
   bool savedOnly = false;
+  bool mapView = false;
   double minPay = 0;
+
+  bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 
   @override
   Widget build(BuildContext context) {
     final st = ref.watch(appControllerProvider);
     final ctl = ref.read(appControllerProvider.notifier);
+    final lang = st.lang;
     final w = st.currentWorker;
     var list = st.jobs.where((j) => j.status == JobStatus.open).toList();
     if (q.isNotEmpty)
@@ -403,6 +422,13 @@ class _JobsTabState extends ConsumerState<JobsTab> {
           .toList();
     if (trade != 'All') list = list.where((j) => j.category == trade).toList();
     if (city != 'All') list = list.where((j) => j.city == city).toList();
+    if (dateF == 'Today') {
+      final t = DateTime.now();
+      list = list.where((j) => _sameDay(j.startDate, t)).toList();
+    } else if (dateF == 'Tomorrow') {
+      final t = DateTime.now().add(const Duration(days: 1));
+      list = list.where((j) => _sameDay(j.startDate, t)).toList();
+    }
     if (minPay > 0) list = list.where((j) => j.payAmount >= minPay).toList();
     if (savedOnly)
       list = list.where((j) => st.savedJobIds.contains(j.id)).toList();
@@ -426,11 +452,11 @@ class _JobsTabState extends ConsumerState<JobsTab> {
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
           child: TextField(
             decoration: InputDecoration(
-              hintText: 'Search title, trade…',
+              hintText: tr(lang, 'searchHint'),
               prefixIcon: const Icon(Icons.search),
               suffixIcon: IconButton(
                 icon: const Icon(Icons.mic_none),
-                tooltip: 'Voice search',
+                tooltip: tr(lang, 'voiceSearch'),
                 onPressed: () => Navigator.pushNamed(context, '/voice'),
               ),
             ),
@@ -444,42 +470,70 @@ class _JobsTabState extends ConsumerState<JobsTab> {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             children: [
               _Chip(
-                label: 'Trade: $trade',
+                label:
+                    "${tr(lang, 'tradeF')}: ${trade == 'All' ? tr(lang, 'all') : tradeLabel(lang, trade)}",
                 onTap: () => _pick(
                   context,
-                  'Trade',
+                  tr(lang, 'tradeF'),
                   ['All', ...kTrades],
                   trade,
                   (v) => setState(() => trade = v),
+                  label: (o) =>
+                      o == 'All' ? tr(lang, 'all') : tradeLabel(lang, o),
                 ),
               ),
               _Chip(
-                label: 'City: $city',
+                label:
+                    "${tr(lang, 'cityF')}: ${city == 'All' ? tr(lang, 'all') : city}",
                 onTap: () => _pick(
                   context,
-                  'City',
+                  tr(lang, 'cityF'),
                   ['All', 'Pune', 'Mumbai'],
                   city,
                   (v) => setState(() => city = v),
+                  label: (o) => o == 'All' ? tr(lang, 'all') : o,
                 ),
               ),
               _Chip(
-                label: 'Sort: $sort',
+                label: "${tr(lang, 'sortF')}: ${_sortLabel(lang, sort)}",
                 onTap: () => _pick(
                   context,
-                  'Sort',
+                  tr(lang, 'sortF'),
                   ['Relevance', 'Pay', 'Distance'],
                   sort,
                   (v) => setState(() => sort = v),
+                  label: (o) => _sortLabel(lang, o),
+                ),
+              ),
+              _Chip(
+                label:
+                    "${tr(lang, 'dateL')}: ${dateF == 'Any'
+                        ? tr(lang, 'any')
+                        : dateF == 'Today'
+                        ? tr(lang, 'today')
+                        : tr(lang, 'tomorrow')}",
+                onTap: () => _pick(
+                  context,
+                  tr(lang, 'dateL'),
+                  const ['Any', 'Today', 'Tomorrow'],
+                  dateF,
+                  (v) => setState(() => dateF = v),
+                  label: (o) => o == 'Any'
+                      ? tr(lang, 'any')
+                      : o == 'Today'
+                      ? tr(lang, 'today')
+                      : tr(lang, 'tomorrow'),
                 ),
               ),
               FilterChip(
-                label: Text('Min ₹${minPay.toStringAsFixed(0)}'),
+                label: Text(
+                  trArgs(lang, 'minPay', {'v': minPay.toStringAsFixed(0)}),
+                ),
                 selected: minPay > 0,
-                onSelected: (_) => _pickPay(context),
+                onSelected: (_) => _pickPay(context, lang),
               ),
               FilterChip(
-                label: const Text('Saved'),
+                label: Text(tr(lang, 'savedF')),
                 selected: savedOnly,
                 onSelected: (v) => setState(() => savedOnly = v),
               ),
@@ -491,28 +545,63 @@ class _JobsTabState extends ConsumerState<JobsTab> {
           child: Row(
             children: [
               const Icon(Icons.verified, size: 14, color: KsColors.successDeep),
-              Text(
-                ' ${list.length} verified openings',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: KsColors.successDeep,
+              Expanded(
+                child: Text(
+                  trArgs(lang, 'verifiedOpenings', {'n': '${list.length}'}),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: KsColors.successDeep,
+                  ),
                 ),
+              ),
+              SegmentedButton<bool>(
+                segments: [
+                  ButtonSegment(
+                    value: false,
+                    icon: const Icon(Icons.list, size: 16),
+                    label: Text(tr(lang, 'listView')),
+                  ),
+                  ButtonSegment(
+                    value: true,
+                    icon: const Icon(Icons.map_outlined, size: 16),
+                    label: Text(tr(lang, 'mapView')),
+                  ),
+                ],
+                selected: {mapView},
+                showSelectedIcon: false,
+                style: SegmentedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
+                onSelectionChanged: (s) =>
+                    setState(() => mapView = s.first),
               ),
             ],
           ),
         ),
         Expanded(
-          child: list.isEmpty
+          child: mapView
+              ? Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                  child: JobMapView(
+                    jobs: list,
+                    workerArea: w.workArea,
+                    radiusKm: w.preferredRadiusKm,
+                    lang: lang,
+                    employerOf: (j) => employerName(st, j, lang),
+                  ),
+                )
+              : list.isEmpty
               ? EmptyView(
                   icon: Icons.search_off_outlined,
-                  title: 'No jobs match',
-                  subtitle: 'Try clearing filters, widening distance, or lowering minimum pay.',
-                  actionLabel: 'Clear filters',
+                  title: tr(lang, 'noJobsMatch'),
+                  subtitle: tr(lang, 'noJobsMatchSub'),
+                  actionLabel: tr(lang, 'clearFilters'),
                   onAction: () => setState(() {
                     q = '';
                     trade = 'All';
                     city = 'All';
+                    dateF = 'Any';
                     minPay = 0;
                     savedOnly = false;
                   }),
@@ -524,7 +613,8 @@ class _JobsTabState extends ConsumerState<JobsTab> {
                     final j = list[i];
                     return JobCard(
                       job: j,
-                      employerName: employerName(st, j),
+                      lang: lang,
+                      employerName: employerName(st, j, lang),
                       distanceLabel:
                           '${areaDistanceKm(w.workArea, j.location).toStringAsFixed(1)} km',
                       saved: st.savedJobIds.contains(j.id),
@@ -540,6 +630,17 @@ class _JobsTabState extends ConsumerState<JobsTab> {
     );
   }
 
+  String _sortLabel(String lang, String sort) {
+    switch (sort) {
+      case 'Pay':
+        return tr(lang, 'paySort');
+      case 'Distance':
+        return tr(lang, 'distanceSort');
+      default:
+        return tr(lang, 'relevance');
+    }
+  }
+
   Widget _Chip({required String label, required VoidCallback onTap}) => Padding(
     padding: const EdgeInsets.only(right: 6),
     child: ActionChip(
@@ -553,8 +654,9 @@ class _JobsTabState extends ConsumerState<JobsTab> {
     String title,
     List<String> opts,
     String cur,
-    void Function(String) set,
-  ) {
+    void Function(String) set, {
+    String Function(String)? label,
+  }) {
     showModalBottomSheet(
       context: context,
       builder: (_) => SafeArea(
@@ -570,7 +672,7 @@ class _JobsTabState extends ConsumerState<JobsTab> {
             ),
             for (final o in opts)
               ListTile(
-                title: Text(o),
+                title: Text(label != null ? label(o) : o),
                 trailing: o == cur
                     ? const Icon(Icons.check, color: KsColors.primary)
                     : null,
@@ -585,23 +687,25 @@ class _JobsTabState extends ConsumerState<JobsTab> {
     );
   }
 
-  void _pickPay(BuildContext context) {
+  void _pickPay(BuildContext context, String lang) {
     showModalBottomSheet(
       context: context,
       builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Padding(
-              padding: EdgeInsets.all(14),
+            Padding(
+              padding: const EdgeInsets.all(14),
               child: Text(
-                'Minimum daily wage',
-                style: TextStyle(fontWeight: FontWeight.w800),
+                tr(lang, 'minWageTitle'),
+                style: const TextStyle(fontWeight: FontWeight.w800),
               ),
             ),
             for (final p in [0.0, 500.0, 700.0, 900.0, 1200.0])
               ListTile(
-                title: Text(p == 0 ? 'Any' : '₹${p.toStringAsFixed(0)}+'),
+                title: Text(
+                  p == 0 ? tr(lang, 'any') : '₹${p.toStringAsFixed(0)}+',
+                ),
                 onTap: () {
                   setState(() => minPay = p);
                   Navigator.pop(context);
@@ -621,6 +725,7 @@ class JobDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final st = ref.watch(appControllerProvider);
     final ctl = ref.read(appControllerProvider.notifier);
+    final lang = st.lang;
     final job = st.jobs.firstWhere((j) => j.id == jobId);
     final flags = safetyFlagsForJob(job);
     final existing = st.applications
@@ -639,7 +744,7 @@ class JobDetailScreen extends ConsumerWidget {
     final w = st.currentWorker;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Job Details')),
+      appBar: AppBar(title: Text(tr(lang, 'jobDetails'))),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 130),
         children: [
@@ -658,7 +763,9 @@ class JobDetailScreen extends ConsumerWidget {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  'VERIFIED JOB • ${job.category}',
+                  trArgs(lang, 'verifiedJob', {
+                    'c': tradeLabel(lang, job.category),
+                  }),
                   style: const TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w800,
@@ -666,7 +773,7 @@ class JobDetailScreen extends ConsumerWidget {
                   ),
                 ),
                 const Spacer(),
-                StatusChip(job.status.name.toUpperCase()),
+                StatusChip(codeLabel(lang, job.status.name).toUpperCase()),
               ],
             ),
           ),
@@ -741,22 +848,26 @@ class JobDetailScreen extends ConsumerWidget {
             crossAxisSpacing: 8,
             childAspectRatio: 1.6,
             children: [
-              _Info(Icons.location_on_outlined, 'Location', job.location),
+              _Info(
+                Icons.location_on_outlined,
+                tr(lang, 'locationL'),
+                job.location,
+              ),
               _Info(
                 Icons.schedule_outlined,
-                'Timing',
+                tr(lang, 'timingL'),
                 '${fmtDate(job.startDate)}\n${job.workingHours}',
               ),
               _Info(
                 Icons.groups_outlined,
-                'Need',
+                tr(lang, 'needL'),
                 '${job.requiredWorkers} worker(s)\n${job.duration}',
               ),
               _Info(
                 Icons.handyman_outlined,
-                'Tools',
+                tr(lang, 'toolsL'),
                 job.toolsRequired.isEmpty
-                    ? 'Provided on site'
+                    ? tr(lang, 'providedOnSite')
                     : job.toolsRequired,
               ),
             ],
@@ -773,7 +884,7 @@ class JobDetailScreen extends ConsumerWidget {
                 ),
               ),
               title: Text(
-                employerName(st, job),
+                employerName(st, job, lang),
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
               subtitle: Text(
@@ -788,16 +899,16 @@ class JobDetailScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.receipt_long_outlined,
                         color: KsColors.primary,
                       ),
-                      SizedBox(width: 6),
+                      const SizedBox(width: 6),
                       Text(
-                        'Work Promise preview',
-                        style: TextStyle(
+                        tr(lang, 'promisePreview'),
+                        style: const TextStyle(
                           fontWeight: FontWeight.w800,
                           color: KsColors.primary,
                         ),
@@ -806,12 +917,15 @@ class JobDetailScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Wage ₹${job.payAmount.toStringAsFixed(0)} • ${job.workingHours} • ${job.location}\nPay: ${job.paymentTerms}',
+                    '${tr(lang, 'rowWage')} ₹${job.payAmount.toStringAsFixed(0)} • ${job.workingHours} • ${job.location}\n${tr(lang, 'rowPayment')}: ${job.paymentTerms}',
                     style: const TextStyle(fontSize: 12.5),
                   ),
-                  const Text(
-                    'Full Work Promise Card is generated after offer — both sides must confirm same terms.',
-                    style: TextStyle(fontSize: 11.5, color: KsColors.muted),
+                  Text(
+                    tr(lang, 'promisePreviewSub'),
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: KsColors.muted,
+                    ),
                   ),
                 ],
               ),
@@ -825,16 +939,16 @@ class JobDetailScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.warning_amber_rounded,
                           color: KsColors.danger,
                         ),
-                        SizedBox(width: 6),
+                        const SizedBox(width: 6),
                         Text(
-                          'Safety flags — read before applying',
-                          style: TextStyle(
+                          tr(lang, 'safetyTitle'),
+                          style: const TextStyle(
                             fontWeight: FontWeight.w800,
                             color: KsColors.danger,
                           ),
@@ -842,7 +956,10 @@ class JobDetailScreen extends ConsumerWidget {
                       ],
                     ),
                     for (final f in flags)
-                      Text('• $f', style: const TextStyle(fontSize: 12.5)),
+                      Text(
+                        '• ${flagLabel(lang, f)}',
+                        style: const TextStyle(fontSize: 12.5),
+                      ),
                     const SizedBox(height: 6),
                     OutlinedButton.icon(
                       onPressed: () => Navigator.pushNamed(
@@ -851,7 +968,7 @@ class JobDetailScreen extends ConsumerWidget {
                         arguments: jobId,
                       ),
                       icon: const Icon(Icons.flag_outlined),
-                      label: const Text('Report this listing'),
+                      label: Text(tr(lang, 'reportListing')),
                     ),
                   ],
                 ),
@@ -864,11 +981,11 @@ class JobDetailScreen extends ConsumerWidget {
                 padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
-                    StatusChip.app(existing.first.status),
+                    StatusChip.app(existing.first.status, lang),
                     const SizedBox(width: 8),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'You already applied — track it in My Jobs.',
+                        tr(lang, 'alreadyApplied'),
                         style: TextStyle(fontSize: 12.5),
                       ),
                     ),
@@ -888,10 +1005,12 @@ class JobDetailScreen extends ConsumerWidget {
                 child: OutlinedButton.icon(
                   onPressed: () => showFeedback(
                     context,
-                    'Calling ${employerName(st, job)}… (simulated call)',
+                    trArgs(lang, 'callingSim', {
+                      'name': employerName(st, job, lang),
+                    }),
                   ),
                   icon: const Icon(Icons.call_outlined),
-                  label: const Text('Call'),
+                  label: Text(tr(lang, 'call')),
                 ),
               ),
               const SizedBox(width: 8),
@@ -904,18 +1023,49 @@ class JobDetailScreen extends ConsumerWidget {
                       ? () => Navigator.pushNamed(context, '/myjobs')
                       : () {
                           final r = ctl.applyForJob(jobId);
-                          showFeedback(context, r.msg, error: !r.ok);
-                          if (r.ok) Navigator.pushNamed(context, '/myjobs');
+                          if (!r.ok) {
+                            showFeedback(context, r.msg, error: true);
+                            return;
+                          }
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              icon: const Icon(
+                                Icons.check_circle,
+                                color: KsColors.successDeep,
+                                size: 44,
+                              ),
+                              title: Text(tr(lang, 'applyConfirmTitle')),
+                              content: Text(
+                                trArgs(lang, 'applyConfirmBody', {
+                                  't': job.title,
+                                }),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx),
+                                  child: Text(tr(lang, 'later')),
+                                ),
+                                FilledButton(
+                                  onPressed: () {
+                                    Navigator.pop(ctx);
+                                    Navigator.pushNamed(context, '/myjobs');
+                                  },
+                                  child: Text(tr(lang, 'viewMyJobs')),
+                                ),
+                              ],
+                            ),
+                          );
                         },
                   icon: Icon(
                     applied ? Icons.work_history_outlined : Icons.lock_outline,
                   ),
                   label: Text(
                     job.status != JobStatus.open
-                        ? 'Closed'
+                        ? tr(lang, 'closed')
                         : applied
-                        ? 'Track application'
-                        : 'Apply & Lock Job',
+                        ? tr(lang, 'trackApp')
+                        : tr(lang, 'applyLock'),
                   ),
                 ),
               ),

@@ -54,21 +54,55 @@ List<Job> matchJobsForWorker(WorkerProfile w, List<Job> jobs) {
   return scored.map((e) => e.key).toList();
 }
 
+/// Employer discovery: only discoverable + available workers surface.
+/// Optional filters stack: min experience, available date ('today'/'tomorrow'
+/// or yyyy-MM-dd), max travel distance, free-text skill match.
 List<WorkerProfile> matchWorkersForEmployer({
   required List<WorkerProfile> workers,
   required String trade,
   required String area,
   double radiusKm = 8,
+  int minExp = 0,
+  String date = 'Any',
+  double? maxDist,
+  String skillQ = '',
 }) {
+  final now = DateTime.now();
+  final todayStr =
+      '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  final tm = now.add(const Duration(days: 1));
+  final tomorrowStr =
+      '${tm.year}-${tm.month.toString().padLeft(2, '0')}-${tm.day.toString().padLeft(2, '0')}';
+  bool dateOk(WorkerProfile w) {
+    if (date == 'Any') return true;
+    if (date == 'today') {
+      return w.availableDate == 'today' || w.availableDate == todayStr;
+    }
+    if (date == 'tomorrow') {
+      return w.availableDate == 'tomorrow' || w.availableDate == tomorrowStr;
+    }
+    return w.availableDate == date;
+  }
+
   final out = <WorkerProfile>[];
   for (final w in workers) {
     if (!w.discoverable) continue;
     if (w.availability != AvailabilityStatus.available) continue;
-    if (w.primaryTrade != trade && !w.additionalSkills.contains(trade))
+    if (w.primaryTrade != trade && !w.additionalSkills.contains(trade)) {
       continue;
-    if (areaDistanceKm(w.workArea, area) <= radiusKm + w.preferredRadiusKm) {
-      out.add(w);
     }
+    if (w.experienceYears < minExp) continue;
+    if (!dateOk(w)) continue;
+    final d = areaDistanceKm(w.workArea, area);
+    if (d > radiusKm + w.preferredRadiusKm) continue;
+    if (maxDist != null && d > maxDist) continue;
+    if (skillQ.trim().isNotEmpty) {
+      final q = skillQ.trim().toLowerCase();
+      final hay = '${w.primaryTrade} ${w.additionalSkills.join(' ')}'
+          .toLowerCase();
+      if (!hay.contains(q)) continue;
+    }
+    out.add(w);
   }
   return out;
 }

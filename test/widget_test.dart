@@ -65,11 +65,13 @@ void main() {
     expect(p['date'], 'tomorrow');
   });
 
-  testWidgets('KaamSetu boots to language onboarding', (tester) async {
+  testWidgets('Rozgari boots to language onboarding', (tester) async {
     SharedPreferences.setMockInitialValues({});
-    await tester.pumpWidget(const ProviderScope(child: KaamSetuApp()));
-    await tester.pump(const Duration(seconds: 1));
-    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpWidget(const ProviderScope(child: RozgariApp()));
+    // splash → async init → language onboarding
+    for (var i = 0; i < 30; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
     expect(find.textContaining('भाषा'), findsWidgets);
   });
 }

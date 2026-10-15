@@ -1,4 +1,4 @@
-// KaamSetu enums — stable string values for persistence.
+// Rozgari enums — stable string values for persistence.
 enum UserRole { worker, employer }
 
 enum AvailabilityStatus { available, busy, unavailable }

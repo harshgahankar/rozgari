@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme.dart';
+import '../../core/i18n/strings.dart';
 import '../../core/widgets/common.dart';
 import '../../data/models/enums.dart';
 import '../../state/app_state.dart';
@@ -22,14 +23,15 @@ class _AgreementScreenState extends ConsumerState<AgreementScreen> {
   Widget build(BuildContext context) {
     final st = ref.watch(appControllerProvider);
     final ctl = ref.read(appControllerProvider.notifier);
+    final lang = st.lang;
     final idx = st.agreements.indexWhere((g) => g.id == widget.agreementId);
     if (idx < 0) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Work Promise')),
-        body: const EmptyView(
+        appBar: AppBar(title: Text(tr(lang, 'workPromise'))),
+        body: EmptyView(
           icon: Icons.receipt_long_outlined,
-          title: 'Agreement not found',
-          subtitle: 'It may have been reset with demo data. Ask the employer to send a fresh offer.',
+          title: tr(lang, 'agrNotFound'),
+          subtitle: tr(lang, 'agrNotFoundSub'),
         ),
       );
     }
@@ -37,9 +39,11 @@ class _AgreementScreenState extends ConsumerState<AgreementScreen> {
     String jobTitle = g.jobId,
         workerName = g.workerId,
         employerName = g.employerId;
+    String jobDate = '';
     try {
       final j = st.jobs.firstWhere((j) => j.id == g.jobId);
       jobTitle = j.title;
+      jobDate = fmtDate(j.startDate);
     } catch (_) {}
     try {
       final wp = st.workers.firstWhere((w) => w.id == g.workerId);
@@ -55,7 +59,7 @@ class _AgreementScreenState extends ConsumerState<AgreementScreen> {
     final both = g.workerConfirmed && g.employerConfirmed;
 
     return Scaffold(
-      appBar: AppBar(title: Text('Work Promise • v${g.version}')),
+      appBar: AppBar(title: Text('${tr(lang, 'workPromise')} • v${g.version}')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 140),
         children: [
@@ -75,8 +79,8 @@ class _AgreementScreenState extends ConsumerState<AgreementScreen> {
                 Expanded(
                   child: Text(
                     both
-                        ? 'CONFIRMED by both sides — keep this slip for wage proof.'
-                        : 'Status: ${g.status.name} • Worker ${g.workerConfirmed ? '✓' : 'pending'} • Employer ${g.employerConfirmed ? '✓' : 'pending'}',
+                        ? tr(lang, 'confirmedBoth')
+                        : '${tr(lang, 'statusL')}: ${codeLabel(lang, g.status.name)} • ${tr(lang, 'rowWorker')} ${g.workerConfirmed ? '✓' : tr(lang, 'pendingL')} • ${tr(lang, 'rowEmployer')} ${g.employerConfirmed ? '✓' : tr(lang, 'pendingL')}',
                     style: const TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
@@ -94,36 +98,40 @@ class _AgreementScreenState extends ConsumerState<AgreementScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(Icons.receipt_long, color: KsColors.primary),
-                      SizedBox(width: 6),
+                      const Icon(Icons.receipt_long, color: KsColors.primary),
+                      const SizedBox(width: 6),
                       Text(
-                        'काम का पक्का वादा • Work Promise Slip',
-                        style: TextStyle(
+                        tr(lang, 'promiseSlip'),
+                        style: const TextStyle(
                           fontWeight: FontWeight.w800,
                           color: KsColors.primary,
                         ),
                       ),
                     ],
                   ),
-                  const Text(
-                    'Informational record — not a legally verified contract.',
-                    style: TextStyle(fontSize: 11, color: KsColors.muted),
+                  Text(
+                    tr(lang, 'infoRecord'),
+                    style: const TextStyle(fontSize: 11, color: KsColors.muted),
                   ),
                   const Divider(),
-                  _Row('Work', jobTitle),
-                  _Row('Worker', workerName),
-                  _Row('Employer', employerName),
-                  _Row('Wage', '₹${g.agreedPay.toStringAsFixed(0)}'),
-                  _Row('Timing', g.workingHours),
-                  _Row('Location', g.location),
+                  _Row(tr(lang, 'rowWork'), jobTitle),
+                  _Row(tr(lang, 'rowWorker'), workerName),
+                  _Row(tr(lang, 'rowEmployer'), employerName),
                   _Row(
-                    'Payment',
-                    '${g.paymentTerms} (simulated / self-reported)',
+                    tr(lang, 'rowWage'),
+                    '₹${g.agreedPay.toStringAsFixed(0)}',
+                  ),
+                  if (jobDate.isNotEmpty) _Row(tr(lang, 'rowDate'), jobDate),
+                  _Row(tr(lang, 'rowTiming'), g.workingHours),
+                  _Row(tr(lang, 'rowLocation'), g.location),
+                  _Row(
+                    tr(lang, 'rowPayment'),
+                    '${g.paymentTerms} ${tr(lang, 'simSelf')}',
                   ),
                   _Row(
-                    'Version',
+                    tr(lang, 'rowVersion'),
                     'v${g.version} • ${g.updatedAt.day}/${g.updatedAt.month} ${g.updatedAt.hour}:${g.updatedAt.minute.toString().padLeft(2, '0')}',
                   ),
                 ],
@@ -132,16 +140,19 @@ class _AgreementScreenState extends ConsumerState<AgreementScreen> {
           ),
           Card(
             color: KsColors.successBg.withOpacity(.5),
-            child: const Padding(
-              padding: EdgeInsets.all(12),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
-                  Icon(Icons.shield_outlined, color: KsColors.successDeep),
-                  SizedBox(width: 8),
+                  const Icon(
+                    Icons.shield_outlined,
+                    color: KsColors.successDeep,
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Dignity guarantee: agreed wage, safe hours and written record. Never pay advance fees.',
-                      style: TextStyle(fontSize: 12.5),
+                      tr(lang, 'dignity'),
+                      style: const TextStyle(fontSize: 12.5),
                     ),
                   ),
                 ],
@@ -151,9 +162,9 @@ class _AgreementScreenState extends ConsumerState<AgreementScreen> {
           if (!both && isWorker) ...[
             TextField(
               controller: _note,
-              decoration: const InputDecoration(
-                labelText: 'Request changes (optional note)',
-                hintText: 'e.g. timing 10am–5pm instead',
+              decoration: InputDecoration(
+                labelText: tr(lang, 'reqChanges'),
+                hintText: tr(lang, 'reqHint'),
               ),
             ),
             const SizedBox(height: 8),
@@ -172,16 +183,13 @@ class _AgreementScreenState extends ConsumerState<AgreementScreen> {
                       Clipboard.setData(
                         ClipboardData(
                           text:
-                              'Work Promise v${g.version}: $jobTitle | $workerName | $employerName | ₹${g.agreedPay} | ${g.workingHours} | ${g.location} | ${g.paymentTerms} (simulated record)',
+                              '${tr(lang, 'workPromise')} v${g.version}: $jobTitle | $workerName | $employerName | ₹${g.agreedPay} | ${g.workingHours} | ${g.location} | ${g.paymentTerms} ${tr(lang, 'simSelf')}',
                         ),
                       );
-                      showFeedback(
-                        context,
-                        'Slip copied — shareable preview (simulated)',
-                      );
+                      showFeedback(context, tr(lang, 'slipCopied'));
                     },
                     icon: const Icon(Icons.share_outlined),
-                    label: const Text('Copy / share slip preview'),
+                    label: Text(tr(lang, 'copyShare')),
                   ),
                 )
               : Column(
@@ -201,8 +209,8 @@ class _AgreementScreenState extends ConsumerState<AgreementScreen> {
                         icon: const Icon(Icons.check_circle_outline),
                         label: Text(
                           isWorker
-                              ? 'Accept & Confirm terms'
-                              : 'Confirm as employer',
+                              ? tr(lang, 'acceptConfirm')
+                              : tr(lang, 'confirmEmployer'),
                         ),
                       ),
                     ),
@@ -212,7 +220,7 @@ class _AgreementScreenState extends ConsumerState<AgreementScreen> {
                         Expanded(
                           child: OutlinedButton(
                             onPressed: () => Navigator.pop(context),
-                            child: const Text('Later'),
+                            child: Text(tr(lang, 'later')),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -227,23 +235,46 @@ class _AgreementScreenState extends ConsumerState<AgreementScreen> {
                                     if (!context.mounted) return;
                                     showFeedback(
                                       context,
-                                      'Change request sent — confirmations reset',
+                                      tr(lang, 'changeSent'),
                                     );
                                     Navigator.pop(context);
                                   }
                                 : () async {
                                     await ctl.declineAgreement(g.id);
                                     if (!context.mounted) return;
-                                    showFeedback(context, 'Offer declined');
+                                    showFeedback(
+                                      context,
+                                      tr(lang, 'offerDeclined'),
+                                    );
                                     Navigator.pop(context);
                                   },
                             child: Text(
-                              isWorker ? 'Request changes' : 'Decline',
+                              isWorker
+                                  ? tr(lang, 'requestChanges')
+                                  : tr(lang, 'declineBtn'),
                             ),
                           ),
                         ),
                       ],
                     ),
+                    if (isWorker) ...[
+                      const SizedBox(height: 6),
+                      SizedBox(
+                        width: double.infinity,
+                        child: TextButton(
+                          onPressed: () async {
+                            await ctl.declineAgreement(g.id);
+                            if (!context.mounted) return;
+                            showFeedback(
+                              context,
+                              tr(lang, 'offerDeclinedByWorker'),
+                            );
+                            Navigator.pop(context);
+                          },
+                          child: Text(tr(lang, 'declineOffer')),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
         ),

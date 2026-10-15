@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// KaamSetu design tokens converted from Frontend/code.html Tailwind config.
+/// Rozgari design tokens converted from Frontend/code.html Tailwind config.
 /// Deep forest green + amber, warm canvas background, bilingual editorial type.
 class KsColors {
   static const primary = Color(0xFF00231A);
@@ -21,7 +21,7 @@ class KsColors {
   static const surfaceHigh = Color(0xFFEAE7E7);
 }
 
-ThemeData kaamSetuTheme() {
+ThemeData rozgariTheme() {
   final scheme = ColorScheme.fromSeed(
     seedColor: KsColors.primary,
     primary: KsColors.primary,
